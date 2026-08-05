@@ -275,7 +275,7 @@ function StoreHeader() {
         )}
         <small>SHOP</small>
       </a>
-      <nav>
+      <nav className="desktop-store-nav">
         <a href="/">Shop</a>
         {user?.role === "customer" && <a href="/customer/orders">My orders</a>}
         {user ? (
@@ -298,6 +298,26 @@ function StoreHeader() {
           Cart <b>{quantity}</b>
         </a>
       </nav>
+      <div className="mobile-store-actions">
+        <details className="mobile-store-menu">
+          <summary aria-label="Open shop navigation">☰</summary>
+          <div>
+            <a href="/">Shop</a>
+            {user?.role === "customer" && <a href="/customer/orders">My orders</a>}
+            {user ? (
+              <>
+                <a href={rolePath[user.role]}>Dashboard</a>
+                <button className="link-button" onClick={() => { logout(); go("/"); }}>Logout</button>
+              </>
+            ) : (
+              <a href="/customer/login">Login</a>
+            )}
+          </div>
+        </details>
+        <a className="cart-link" href="/cart" aria-label={`Cart with ${quantity} items`}>
+          Cart <b>{quantity}</b>
+        </a>
+      </div>
     </header>
   );
 }
