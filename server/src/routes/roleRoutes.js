@@ -1,0 +1,1 @@
+import { Router } from "express"; import {listRoles,createRole} from "../controllers/roleController.js"; import authenticate from "../middleware/authenticate.js"; import allowRoles from "../middleware/allowRoles.js"; const router=Router(); router.use(authenticate,allowRoles("super_admin")); router.get("/",listRoles); router.post("/",createRole); export default router;

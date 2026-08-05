@@ -1,0 +1,1 @@
+import CustomerSidebar from "../components/navigation/CustomerSidebar"; export default function CustomerLayout({ children }) { return <div className="app-shell"><aside><CustomerSidebar /></aside><main>{children}</main></div>; }

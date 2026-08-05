@@ -1,0 +1,1 @@
+import { supabase } from "./supabase.js"; export const connectDatabase = async () => { const { error } = await supabase.from("site_settings").select("id").limit(1); if (error) throw error; return supabase; }; export default connectDatabase;

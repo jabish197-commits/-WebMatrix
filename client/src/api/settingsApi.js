@@ -1,0 +1,1 @@
+import api from "./axiosInstance"; export const getPublicSettings = () => api("/settings/public"); export const updateSettings = (data) => api("/settings", { method:"PATCH", body:JSON.stringify(data) });

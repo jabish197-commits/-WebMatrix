@@ -1,0 +1,1 @@
+import {supabase} from "../config/supabase.js"; export const recordAudit=async(data)=>{const {data:row,error}=await supabase.from("audit_logs").insert(data).select().single();if(error)throw error;return row;};

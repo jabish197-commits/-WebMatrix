@@ -1,0 +1,1 @@
+export default function ProfileForm({ user={}, onSubmit }) { return <form onSubmit={onSubmit}><label>Name<input name="name" defaultValue={user.name} /></label><label>Email<input name="email" defaultValue={user.email} /></label><button>Save profile</button></form>; }

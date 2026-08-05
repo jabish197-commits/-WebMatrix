@@ -1,0 +1,1 @@
+import { useEffect, useState } from "react"; import { getPublicSettings } from "../api/settingsApi"; export default function useSiteSettings() { const [settings,setSettings]=useState(null); useEffect(()=>{getPublicSettings().then(setSettings)},[]); return settings; }

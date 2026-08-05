@@ -1,0 +1,1 @@
+export const initialAuthState = { user:null, token:null, loading:false }; export const setCredentials = (payload) => ({ type:"auth/setCredentials", payload }); export const logout = () => ({ type:"auth/logout" });

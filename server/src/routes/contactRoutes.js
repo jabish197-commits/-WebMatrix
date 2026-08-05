@@ -1,0 +1,1 @@
+import { Router } from "express"; import {sendMessage,listMessages} from "../controllers/contactController.js"; import authenticate from "../middleware/authenticate.js"; import allowRoles from "../middleware/allowRoles.js"; const router=Router(); router.post("/",sendMessage); router.get("/",authenticate,allowRoles("super_admin","admin"),listMessages); export default router;

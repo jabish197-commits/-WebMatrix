@@ -1,0 +1,1 @@
+import {supabase} from "../config/supabase.js"; export const listRoles=async(_req,res)=>{const{data,error}=await supabase.from("roles").select("*");if(error)throw error;res.json(data);}; export const createRole=async(req,res)=>{const{data,error}=await supabase.from("roles").insert(req.body).select().single();if(error)throw error;res.status(201).json(data);};

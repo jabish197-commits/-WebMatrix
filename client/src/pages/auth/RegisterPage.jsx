@@ -1,0 +1,1 @@
+import RegisterForm from "../../components/forms/RegisterForm"; export default function RegisterPage(props) { return <section className="panel"><h1>Register</h1><RegisterForm {...props} /></section>; }

@@ -1,0 +1,1 @@
+import { Router } from "express"; import {listBanners,createBanner} from "../controllers/bannerController.js"; import authenticate from "../middleware/authenticate.js"; import allowRoles from "../middleware/allowRoles.js"; const router=Router(); router.get("/",listBanners); router.post("/",authenticate,allowRoles("super_admin"),createBanner); export default router;

@@ -1,0 +1,1 @@
+import SuperAdminSidebar from "../components/navigation/SuperAdminSidebar"; export default function SuperAdminLayout({ children }) { return <div className="app-shell"><aside><SuperAdminSidebar /></aside><main>{children}</main></div>; }

@@ -1,0 +1,1 @@
+export default function rateLimiter(){const attempts=new Map();return(req,res,next)=>{const now=Date.now(),entry=attempts.get(req.ip)||{count:0,start:now};if(now-entry.start>60000){entry.count=0;entry.start=now;}entry.count++;attempts.set(req.ip,entry);return entry.count>100?res.status(429).json({message:"Too many requests"}):next();};}

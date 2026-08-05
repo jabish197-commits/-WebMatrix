@@ -1,0 +1,1 @@
+import {supabase} from "../config/supabase.js"; const permissions=["customer.view","customer.update","customer.delete","content.manage","reports.view","settings.manage"]; export default async function seedPermissions(){const {data,error}=await supabase.from("permissions").upsert(permissions.map(key=>({key})),{onConflict:"key"}).select();if(error)throw error;return data;}

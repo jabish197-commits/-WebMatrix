@@ -1,0 +1,1 @@
+import { Router } from "express"; import {getSettings,saveSettings} from "../controllers/settingsController.js"; import authenticate from "../middleware/authenticate.js"; import allowRoles from "../middleware/allowRoles.js"; const router=Router(); router.get("/public",getSettings); router.patch("/",authenticate,allowRoles("super_admin"),saveSettings); export default router;

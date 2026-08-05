@@ -1,0 +1,1 @@
+export default function RegisterForm({ onSubmit }) { return <form onSubmit={onSubmit}><label>Name<input name="name" required /></label><label>Email<input name="email" type="email" required /></label><label>Password<input name="password" type="password" minLength="8" required /></label><button type="submit">Register</button></form>; }

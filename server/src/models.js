@@ -1,0 +1,1 @@
+export const TABLES={users:"users",siteSettings:"site_settings",roles:"roles",permissions:"permissions",pages:"pages",banners:"banners",contactMessages:"contact_messages",notifications:"notifications",refreshTokens:"refresh_tokens",auditLogs:"audit_logs"};

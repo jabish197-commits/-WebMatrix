@@ -1,0 +1,1 @@
+export const authController = { register:(_req,res)=>res.status(501).json({message:"Use /api/auth/register"}), login:(_req,res)=>res.status(501).json({message:"Use /api/auth/login"}) }; export default authController;

@@ -1,0 +1,1 @@
+export default function PublicNavbar() { return <header className="topbar"><a className="brand" href="/">WebMatrix</a><nav><a href="/about">About</a> <a href="/contact">Contact</a> <a href="/login">Login</a></nav></header>; }

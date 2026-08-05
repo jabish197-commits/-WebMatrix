@@ -1,0 +1,1 @@
+export default function Pagination({ page=1, pages=1, onChange }) { return <nav aria-label="Pagination"><button disabled={page<=1} onClick={()=>onChange(page-1)}>Previous</button><span>{page} / {pages}</span><button disabled={page>=pages} onClick={()=>onChange(page+1)}>Next</button></nav>; }

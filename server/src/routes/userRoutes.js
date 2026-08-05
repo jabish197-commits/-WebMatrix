@@ -1,0 +1,1 @@
+import { Router } from "express"; import {listUsers,getUser} from "../controllers/userController.js"; import authenticate from "../middleware/authenticate.js"; import allowRoles from "../middleware/allowRoles.js"; const router=Router(); router.use(authenticate,allowRoles("super_admin","admin")); router.get("/",listUsers); router.get("/:id",getUser); export default router;

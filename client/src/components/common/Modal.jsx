@@ -1,0 +1,1 @@
+export default function Modal({ open, title, children, onClose }) { return open ? <div role="dialog" aria-modal="true"><section className="panel"><h2>{title}</h2>{children}<button onClick={onClose}>Close</button></section></div> : null; }

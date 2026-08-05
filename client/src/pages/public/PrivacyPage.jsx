@@ -1,0 +1,1 @@
+export default function PrivacyPage() { return <article><h1>Privacy Policy</h1></article>; }

@@ -1,0 +1,1 @@
+import {supabase} from "../config/supabase.js"; export const findUserByEmail=async(email)=>(await supabase.from("users").select("*").eq("email",email.toLowerCase()).maybeSingle()).data; export const findUserById=async(id)=>(await supabase.from("users").select("*").eq("id",id).maybeSingle()).data;

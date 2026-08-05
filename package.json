@@ -1,0 +1,12 @@
+{
+  "name": "webmatrix",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "build": "npm run build --prefix client",
+    "seed": "npm run seed --prefix server"
+    ,"seed:commerce": "npm run seed:commerce --prefix server"
+  },
+  "devDependencies": { "concurrently": "^9.2.1" }
+}

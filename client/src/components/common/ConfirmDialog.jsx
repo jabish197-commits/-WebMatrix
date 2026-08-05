@@ -1,0 +1,1 @@
+import Modal from "./Modal"; export default function ConfirmDialog({ open, message, onConfirm, onClose }) { return <Modal open={open} title="Please confirm" onClose={onClose}><p>{message}</p><button onClick={onConfirm}>Confirm</button></Modal>; }

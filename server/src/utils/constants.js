@@ -1,0 +1,1 @@
+export const ROLES=Object.freeze({SUPER_ADMIN:"super_admin",ADMIN:"admin",CUSTOMER:"customer"}); export const PERMISSIONS=Object.freeze({CUSTOMER_VIEW:"customer.view",CUSTOMER_UPDATE:"customer.update",CONTENT_MANAGE:"content.manage"});

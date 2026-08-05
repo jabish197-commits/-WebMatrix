@@ -1,0 +1,1 @@
+import { useMemo } from "react"; export default function useAuth() { return useMemo(() => ({ user:JSON.parse(localStorage.getItem("webmatrix_user") || "null"), token:localStorage.getItem("webmatrix_token") }), []); }

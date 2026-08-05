@@ -1,0 +1,1 @@
+import AdminSidebar from "../components/navigation/AdminSidebar"; export default function AdminLayout({ children }) { return <div className="app-shell"><aside><AdminSidebar /></aside><main>{children}</main></div>; }

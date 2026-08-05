@@ -1,0 +1,1 @@
+export const validateRegistration=(body)=>[...(!body.name?["Name is required"]:[]),...(!body.email?["Email is required"]:[]),...(!body.password||body.password.length<8?["Password must have at least 8 characters"]:[])]; export const validateLogin=(body)=>!body.email||!body.password?["Email and password are required"]:[];
