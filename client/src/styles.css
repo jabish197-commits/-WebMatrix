@@ -72,3 +72,54 @@ body{background-color:var(--store-bg,#f7f5ef);background-image:var(--store-backg
 .dashboard-loading{margin-top:36px;color:#6f786f}.operational-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.operational-stats article{min-height:122px;display:flex;flex-direction:column;justify-content:space-between}.operational-stats strong{font-size:1.75rem}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,.8fr);gap:22px;margin-top:24px}.dashboard-panel{background:white;border:1px solid #e1e4dd;border-radius:16px;padding:24px;min-width:0}.dashboard-panel-head{display:flex;align-items:start;justify-content:space-between;gap:18px;margin-bottom:18px}.dashboard-panel-head h2{margin:5px 0 0;font:700 1.6rem var(--store-font,"DM Sans")}.dashboard-panel-head>a{padding:8px 11px;border:1px solid #d9ddd6;border-radius:8px;font-weight:700;font-size:.84rem}.dashboard-orders,.stock-list{display:grid}.dashboard-orders article,.stock-list article{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:15px 0;border-top:1px solid #eceee9}.dashboard-orders article>div,.stock-list article>div{display:grid;gap:4px;min-width:0}.dashboard-orders small,.stock-list small{color:#737d74}.dashboard-orders .status{font-size:.72rem;padding:6px 8px}.stock-list article{grid-template-columns:minmax(0,1fr) auto}.stock-list article>b{color:#a53d2e}.dashboard-empty{padding:35px 15px;text-align:center;color:#737d74;background:#f7f8f5;border-radius:10px}
 @media(max-width:1100px){.dashboard-grid{grid-template-columns:1fr}.operational-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.operational-stats{grid-template-columns:1fr}.operational-stats article{min-height:105px}.dashboard-panel{padding:19px}.dashboard-panel-head h2{font-size:1.35rem}.dashboard-orders article{grid-template-columns:minmax(0,1fr) auto}.dashboard-orders article>b{grid-column:1/-1}.dashboard-orders .status{justify-self:end}.dashboard-grid{gap:16px}}
+
+/* Keep checkout and UPI controls synchronized with the Super Admin store theme. */
+.payment-box{
+  background:var(--shop-button,#18251b);
+  color:var(--shop-button-text,#fff)
+}
+.payment-box .payment-option{
+  border-color:color-mix(in srgb,var(--shop-button-text,#fff) 22%,transparent);
+  background:color-mix(in srgb,var(--shop-button-text,#fff) 7%,transparent)
+}
+.payment-box .payment-option.selected{
+  border-color:var(--circle,#e7a93f);
+  background:color-mix(in srgb,var(--circle,#e7a93f) 15%,var(--shop-button,#18251b))
+}
+.payment-option input{accent-color:var(--circle,#e7a93f)}
+.upi-payment{
+  background:var(--card-bg,#fff);
+  color:var(--store-text,#18251b);
+  border:1px solid var(--card-border,#d8ddd7);
+  border-radius:var(--card-radius,10px)
+}
+.upi-payment input,
+.upi-payment input[type=file]{
+  background:var(--card-bg,#fff);
+  color:var(--store-text,#18251b);
+  border-color:var(--card-border,#d8ddd7)
+}
+.upi-apps span,
+.upi-app-button{
+  background:var(--card-bg,#fff);
+  color:var(--store-text,#18251b);
+  border-color:var(--card-border,#d8ddd7)
+}
+.upi-payment p,
+.direct-upi-heading span{
+  color:color-mix(in srgb,var(--store-text,#18251b) 66%,transparent)
+}
+.direct-upi-heading small,
+.payment-proof-link{color:var(--circle,#e7a93f)}
+.direct-upi-button{
+  background:var(--circle,#e7a93f);
+  color:var(--store-text,#18251b)
+}
+.merchant-upi{
+  background:color-mix(in srgb,var(--card-bg,#fff) 88%,var(--circle,#e7a93f));
+  border-color:var(--card-border,#d8ddd7)
+}
+.proof-instruction{
+  background:color-mix(in srgb,var(--circle,#e7a93f) 18%,var(--card-bg,#fff));
+  color:var(--store-text,#18251b)
+}
