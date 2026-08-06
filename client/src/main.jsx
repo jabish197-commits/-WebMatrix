@@ -7,7 +7,9 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-const API = import.meta.env.VITE_API_URL || "/api",
+const API = import.meta.env.DEV
+    ? import.meta.env.VITE_API_URL || "/api"
+    : "/api",
   AuthContext = createContext(null),
   CartContext = createContext(null),
   ThemeContext = createContext(null);

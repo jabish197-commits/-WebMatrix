@@ -14,12 +14,22 @@ app.use(helmet());
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim());
+const isWebMatrixVercelOrigin = (origin) => {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "https:"
+      && url.hostname.endsWith(".vercel.app")
+      && (url.hostname === "webmatrix-delta.vercel.app" || url.hostname.startsWith("webmatrix-"));
+  } catch {
+    return false;
+  }
+};
 app.use(cors({
   credentials: true,
   origin(origin, callback) {
     const isLocalDevelopment = process.env.NODE_ENV !== "production"
       && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin || "");
-    if (!origin || allowedOrigins.includes(origin) || isLocalDevelopment) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin) || isLocalDevelopment || isWebMatrixVercelOrigin(origin)) return callback(null, true);
     return callback(new Error("Origin is not allowed by CORS"));
   },
 }));
