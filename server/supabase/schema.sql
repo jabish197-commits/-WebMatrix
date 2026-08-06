@@ -39,12 +39,14 @@ create table if not exists public.banners (id uuid primary key default gen_rando
 create table if not exists public.contact_messages (id uuid primary key default gen_random_uuid(), name text, email text, subject text, message text, status text default 'new', created_at timestamptz default now());
 create table if not exists public.notifications (id uuid primary key default gen_random_uuid(), user_id uuid references public.users(id) on delete cascade, title text, message text, read_at timestamptz, created_at timestamptz default now());
 create table if not exists public.refresh_tokens (id uuid primary key default gen_random_uuid(), user_id uuid references public.users(id) on delete cascade, token_hash text not null, expires_at timestamptz not null, created_at timestamptz default now());
+create table if not exists public.password_reset_tokens (id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id) on delete cascade, token_hash text not null unique, expires_at timestamptz not null, used_at timestamptz, created_at timestamptz not null default now());
 create table if not exists public.audit_logs (id uuid primary key default gen_random_uuid(), actor_id uuid references public.users(id) on delete set null, action text, resource text, resource_id text, metadata jsonb default '{}', ip text, created_at timestamptz default now());
 
 insert into public.site_settings(singleton) values ('main') on conflict (singleton) do nothing;
 alter table public.users enable row level security; alter table public.site_settings enable row level security; alter table public.roles enable row level security;
 alter table public.permissions enable row level security; alter table public.pages enable row level security; alter table public.banners enable row level security;
 alter table public.contact_messages enable row level security; alter table public.notifications enable row level security; alter table public.refresh_tokens enable row level security; alter table public.audit_logs enable row level security;
+alter table public.password_reset_tokens enable row level security;
 revoke all on all tables in schema public from anon, authenticated;
 grant all on all tables in schema public to service_role;
 

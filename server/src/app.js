@@ -4,9 +4,10 @@ import helmet from "helmet";
 import morgan from "morgan";
 import bcrypt from "bcryptjs";
 import multer from "multer";
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { supabase } from "./config/supabase.js";
 import { allowRoles, authenticate, requirePermission, signToken } from "./auth.js";
+import { sendEmail } from "./services/emailService.js";
 
 const app = express();
 const imageUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:5*1024*1024},fileFilter(_req,file,callback){const allowed=["image/jpeg","image/png","image/webp","image/gif","image/svg+xml"],valid=allowed.includes(file.mimetype);callback(valid?null:new Error("Only JPG, PNG, WebP, GIF, and SVG images are allowed"),valid);}});
@@ -77,6 +78,56 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (!user || !(await bcrypt.compare(req.body.password || "", user.password_hash))) return res.status(401).json({ message: "Invalid email or password" });
     if (user.status !== "active") return res.status(403).json({ message: "Account is suspended" });
     res.json({ token: signToken(user), user: safeUser(user), welcomeMessage:welcomeFor(user) });
+  } catch (error) { next(error); }
+});
+
+app.post("/api/auth/forgot-password", async (req, res, next) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: "Enter a valid email address" });
+    const genericMessage = "If an active WebMatrix account uses that email, a reset link has been sent.";
+    const { data: user, error } = await supabase.from("users").select("id,name,email,status").eq("email", email).maybeSingle();
+    if (error) throw error;
+    if (!user || user.status !== "active") return res.json({ message: genericMessage });
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    await supabase.from("password_reset_tokens").update({ used_at: new Date().toISOString() }).eq("user_id", user.id).is("used_at", null);
+    const { data: tokenRow, error: insertError } = await supabase.from("password_reset_tokens").insert({ user_id: user.id, token_hash: tokenHash, expires_at: expiresAt }).select("id").single();
+    if (insertError) throw insertError;
+    const clientUrl = (process.env.CLIENT_URL || "http://localhost:5173").split(",")[0].trim().replace(/\/$/, "");
+    const resetUrl = `${clientUrl}/reset-password?token=${rawToken}`;
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your WebMatrix password",
+        text: `Reset your WebMatrix password using this link within 30 minutes: ${resetUrl}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>Reset your WebMatrix password</h2><p>Hello ${String(user.name).replace(/[<>&"]/g, "")},</p><p>This secure link expires in 30 minutes and can be used only once.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:#18251b;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>If you did not request this, you can ignore this email.</p></div>`,
+      });
+    } catch (emailError) {
+      await supabase.from("password_reset_tokens").delete().eq("id", tokenRow.id);
+      throw emailError;
+    }
+    res.json({ message: genericMessage });
+  } catch (error) { next(error); }
+});
+
+app.post("/api/auth/reset-password", async (req, res, next) => {
+  try {
+    const token = String(req.body.token || "").trim();
+    const password = String(req.body.password || "");
+    if (!/^[a-f0-9]{64}$/.test(token)) return res.status(400).json({ message: "This reset link is invalid" });
+    if (password.length < 8) return res.status(400).json({ message: "Password must contain at least 8 characters" });
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const { data: resetToken, error } = await supabase.from("password_reset_tokens").select("id,user_id,expires_at,used_at").eq("token_hash", tokenHash).maybeSingle();
+    if (error) throw error;
+    if (!resetToken || resetToken.used_at || new Date(resetToken.expires_at) <= new Date()) return res.status(400).json({ message: "This reset link is invalid or has expired" });
+    const passwordHash = await bcrypt.hash(password, 12);
+    const { error: updateError } = await supabase.from("users").update({ password_hash: passwordHash, updated_at: new Date().toISOString() }).eq("id", resetToken.user_id);
+    if (updateError) throw updateError;
+    const { error: consumeError } = await supabase.from("password_reset_tokens").update({ used_at: new Date().toISOString() }).eq("user_id", resetToken.user_id).is("used_at", null);
+    if (consumeError) throw consumeError;
+    res.json({ message: "Password reset successful. You can now sign in." });
   } catch (error) { next(error); }
 });
 

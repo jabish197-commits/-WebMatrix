@@ -793,6 +793,7 @@ function AuthPage({ register = false, customerOnly = false }) {
         <button className="button">
           {register ? "Create account" : "Login"}
         </button>
+        {!register && <a className="forgot-password-link" href="/forgot-password">Forgot password?</a>}
         <p>
           {register
             ? "Already registered?"
@@ -811,6 +812,76 @@ function AuthPage({ register = false, customerOnly = false }) {
             {register ? "Login" : customerOnly ? "Register" : "Customer login"}
           </a>
         </p>
+      </form>
+    </div>
+  );
+}
+function ForgotPassword() {
+  const [message, setMessage] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    const email = new FormData(e.currentTarget).get("email");
+    setBusy(true);
+    setError("");
+    try {
+      const result = await request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+      setMessage(result.message);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="auth-page">
+      <form className="panel" onSubmit={submit}>
+        <a className="brand" href="/">Web<span>Matrix</span></a>
+        <h2>Reset password</h2>
+        <p>Enter your registered email. We will send a secure link that expires in 30 minutes.</p>
+        <label>Email<input name="email" type="email" required autoComplete="email" /></label>
+        {error && <p className="error">{error}</p>}
+        {message && <p className="success">{message}</p>}
+        <button className="button" disabled={busy}>{busy ? "Sending…" : "Send reset link"}</button>
+        <a className="auth-back-link" href="/login">Back to login</a>
+      </form>
+    </div>
+  );
+}
+function ResetPassword() {
+  const token = new URLSearchParams(location.search).get("token") || "";
+  const [message, setMessage] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    const values = Object.fromEntries(new FormData(e.currentTarget));
+    setError("");
+    if (values.password !== values.confirmPassword) return setError("Passwords do not match");
+    setBusy(true);
+    try {
+      const result = await request("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password: values.password }) });
+      setMessage(result.message);
+      setTimeout(() => go("/login"), 1200);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="auth-page">
+      <form className="panel" onSubmit={submit}>
+        <a className="brand" href="/">Web<span>Matrix</span></a>
+        <h2>Create new password</h2>
+        {!token && <p className="error">This reset link is missing its security token.</p>}
+        <label>New password<input name="password" type="password" minLength="8" required autoComplete="new-password" /></label>
+        <label>Confirm password<input name="confirmPassword" type="password" minLength="8" required autoComplete="new-password" /></label>
+        {error && <p className="error">{error}</p>}
+        {message && <p className="success">{message}</p>}
+        <button className="button" disabled={busy || !token}>{busy ? "Resetting…" : "Reset password"}</button>
+        <a className="auth-back-link" href="/login">Back to login</a>
       </form>
     </div>
   );
@@ -1851,6 +1922,8 @@ function Router() {
   if (path === "/login") return <AuthPage />;
   if (path === "/customer/login") return <AuthPage customerOnly />;
   if (path === "/register") return <AuthPage register />;
+  if (path === "/forgot-password") return <ForgotPassword />;
+  if (path === "/reset-password") return <ResetPassword />;
   const role = path.startsWith("/super-admin")
     ? "super_admin"
     : path.startsWith("/admin")
