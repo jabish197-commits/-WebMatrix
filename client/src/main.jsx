@@ -1654,8 +1654,8 @@ function Admins() {
     const form = Object.fromEntries(new FormData(e.currentTarget));
     form.permissions = ["customer.view", "catalog.manage", "orders.manage"];
     try {
-      await request("/admins", { method: "POST", body: JSON.stringify(form) });
-      setMessage("Admin created successfully");
+      const admin = await request("/admins", { method: "POST", body: JSON.stringify(form) });
+      setMessage(admin.accountUpdated ? "Existing user promoted to Admin successfully" : "Admin created successfully");
       e.currentTarget.reset();
     } catch (err) {
       setMessage(err.message);

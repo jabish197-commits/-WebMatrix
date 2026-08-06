@@ -111,13 +111,31 @@ app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res
     const normalizedEmail = email.toLowerCase().trim();
     const { data: existingAdmin, error: lookupError } = await supabase
       .from("users")
-      .select("id")
+      .select("id,role")
       .eq("email", normalizedEmail)
       .maybeSingle();
     if (lookupError) throw lookupError;
-    if (existingAdmin) return res.status(409).json({ message: "A user with this email already exists" });
+    if (existingAdmin?.role === "super_admin") {
+      return res.status(409).json({ message: "This email belongs to a Super Admin and cannot be changed here" });
+    }
+    if (existingAdmin) {
+      const { data: admin, error } = await supabase
+        .from("users")
+        .update({
+          name,
+          password_hash: await bcrypt.hash(password, 12),
+          role: "admin",
+          permissions,
+          status: "active",
+        })
+        .eq("id", existingAdmin.id)
+        .select("id,name,email,role,permissions,status")
+        .single();
+      if (error) throw error;
+      return res.json({ ...admin, accountUpdated: true });
+    }
     const {data:admin,error}=await supabase.from("users").insert({name,email:normalizedEmail,password_hash:await bcrypt.hash(password,12),role:"admin",permissions}).select("id,name,email,role,permissions,status").single(); if(error)throw error;
-    res.status(201).json(admin);
+    res.status(201).json({ ...admin, accountUpdated: false });
   } catch (error) { next(error); }
 });
 
