@@ -365,7 +365,18 @@ function Store() {
             {settings?.homeText ||
               "Discover quality essentials with secure checkout, transparent pricing, and dependable delivery."}
           </p>
-          <a className="button" href="#catalog">
+          <a
+            className="button"
+            href="#catalog"
+            aria-controls="catalog"
+            onClick={(event) => {
+              const catalog = document.getElementById("catalog");
+              if (!catalog) return;
+              event.preventDefault();
+              catalog.scrollIntoView({ behavior: "smooth", block: "start" });
+              history.replaceState({}, "", `${location.pathname}#catalog`);
+            }}
+          >
             Shop the collection
           </a>
         </div>
