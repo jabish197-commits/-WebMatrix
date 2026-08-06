@@ -58,6 +58,7 @@ body{background-color:var(--store-bg,#f7f5ef);background-image:var(--store-backg
 }
 
 @media(max-width:760px){
+  .app-shell{grid-template-rows:auto minmax(0,1fr);align-content:start}
   .mobile-dashboard-header{height:72px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;background:#121a2b;color:white;position:sticky;top:0;z-index:30;box-shadow:0 8px 24px #121a2b20}
   .mobile-dashboard-header>div{display:grid;gap:2px}.mobile-dashboard-header .brand{color:white;font-size:1.15rem}.mobile-dashboard-header small{color:#96a0b6;text-transform:capitalize}
   .mobile-dashboard-menu{position:relative}.mobile-dashboard-menu summary{list-style:none;width:42px;height:42px;display:grid;place-items:center;border:1px solid #ffffff30;border-radius:10px;font-size:1.25rem;cursor:pointer}.mobile-dashboard-menu summary::-webkit-details-marker{display:none}
