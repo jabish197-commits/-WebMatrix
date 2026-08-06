@@ -875,7 +875,14 @@ function Dashboard({ role }) {
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    request("/dashboard").then(setDashboard).catch((err) => setError(err.message));
+    request("/dashboard")
+      .then((data) => {
+        if (!data?.metrics || !Array.isArray(data.recentOrders)) {
+          throw new Error("The live dashboard API is still updating. Wait for Render to become Live, then reload this page.");
+        }
+        setDashboard(data);
+      })
+      .catch((err) => setError(err.message));
   }, []);
   const welcomeMessage =
     role === "customer"
@@ -1809,14 +1816,6 @@ class AppErrorBoundary extends React.Component {
   }
   componentDidCatch(error) {
     console.error("WebMatrix UI error", error);
-    if (!sessionStorage.getItem("webmatrix_recovery_attempted")) {
-      sessionStorage.setItem("webmatrix_recovery_attempted", "1");
-      sessionStorage.removeItem("webmatrix_user");
-      sessionStorage.removeItem("webmatrix_token");
-      sessionStorage.removeItem("webmatrix_welcome");
-      localStorage.removeItem("webmatrix_cart");
-      location.replace("/login");
-    }
   }
   render() {
     if (this.state.failed)
@@ -1827,24 +1826,9 @@ class AppErrorBoundary extends React.Component {
               Web<span>Matrix</span>
             </a>
             <h2>Let's restore this page</h2>
-            <p>
-              WebMatrix could not restore this page automatically. Sign in
-              again, or reload after reviewing the error below.
-            </p>
+            <p>WebMatrix could not render this page. Your login is still preserved; reload after reviewing the error below.</p>
             <p className="error">{this.state.message}</p>
-            <button
-              className="button"
-              onClick={() => {
-                sessionStorage.removeItem("webmatrix_user");
-                sessionStorage.removeItem("webmatrix_token");
-                sessionStorage.removeItem("webmatrix_welcome");
-                localStorage.removeItem("webmatrix_cart");
-                sessionStorage.removeItem("webmatrix_recovery_attempted");
-                location.href = "/login";
-              }}
-            >
-              Restore and sign in
-            </button>
+            <button className="button" onClick={() => location.reload()}>Reload page</button>
             <button
               className="ghost-recovery"
               onClick={() => location.reload()}
