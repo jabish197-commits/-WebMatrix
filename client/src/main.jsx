@@ -875,7 +875,7 @@ function Dashboard({ role }) {
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    request("/dashboard")
+    request(`/dashboard/live?ts=${Date.now()}`, { cache: "no-store" })
       .then((data) => {
         if (!data?.metrics || !Array.isArray(data.recentOrders)) {
           throw new Error("The live dashboard API is still updating. Wait for Render to become Live, then reload this page.");

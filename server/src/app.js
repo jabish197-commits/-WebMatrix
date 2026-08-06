@@ -139,8 +139,9 @@ app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res
   } catch (error) { next(error); }
 });
 
-app.get("/api/dashboard", authenticate, async (req, res, next) => {
+const liveDashboard = async (req, res, next) => {
   try {
+    res.set("Cache-Control", "private, no-store, max-age=0");
     const isCustomer = req.user.role === "customer";
     let ordersQuery = supabase
       .from("orders")
@@ -210,7 +211,9 @@ app.get("/api/dashboard", authenticate, async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+app.get("/api/dashboard", authenticate, liveDashboard);
+app.get("/api/dashboard/live", authenticate, liveDashboard);
 
 app.get("/api/categories", async (_req, res, next) => {
   try { const {data,error}=await supabase.from("categories").select("*").eq("is_active",true).order("name");if(error)throw error;res.json(data); }
