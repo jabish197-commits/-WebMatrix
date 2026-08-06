@@ -263,6 +263,7 @@ function StoreHeader() {
   const { user, logout } = useContext(AuthContext),
     { quantity } = useContext(CartContext),
     { settings } = useContext(ThemeContext);
+  const canShop = !user || user.role === "customer";
   return (
     <header className="store-header">
       <a className="brand" href="/">
@@ -296,9 +297,11 @@ function StoreHeader() {
         ) : (
           <a href="/customer/login">Login</a>
         )}
-        <a className="cart-link" href="/cart">
-          Cart <b>{quantity}</b>
-        </a>
+        {canShop && (
+          <a className="cart-link" href="/cart">
+            Cart <b>{quantity}</b>
+          </a>
+        )}
       </nav>
       <div className="mobile-store-actions">
         <details className="mobile-store-menu">
@@ -316,9 +319,11 @@ function StoreHeader() {
             )}
           </div>
         </details>
-        <a className="cart-link" href="/cart" aria-label={`Cart with ${quantity} items`}>
-          Cart <b>{quantity}</b>
-        </a>
+        {canShop && (
+          <a className="cart-link" href="/cart" aria-label={`Cart with ${quantity} items`}>
+            Cart <b>{quantity}</b>
+          </a>
+        )}
       </div>
     </header>
   );
@@ -329,7 +334,9 @@ function Store() {
     [search, setSearch] = useState(""),
     [category, setCategory] = useState(""),
     { add } = useContext(CartContext),
+    { user } = useContext(AuthContext),
     { settings } = useContext(ThemeContext);
+  const canShop = !user || user.role === "customer";
   useEffect(() => {
     request("/products")
       .then(setProducts)
@@ -420,9 +427,11 @@ function Store() {
                 <div>
                   <strong>{money(p.price)}</strong>
                   {p.compare_at_price && <del>{money(p.compare_at_price)}</del>}
-                  <button disabled={!p.stock} onClick={() => add(p)}>
-                    {p.stock ? "Add to cart" : "Sold out"}
-                  </button>
+                  {canShop && (
+                    <button disabled={!p.stock} onClick={() => add(p)}>
+                      {p.stock ? "Add to cart" : "Sold out"}
+                    </button>
+                  )}
                 </div>
               </div>
             </article>
@@ -444,7 +453,9 @@ function ProductDetails({ slug }) {
     [selectedImage, setSelectedImage] = useState(""),
     [quantity, setQuantity] = useState(1),
     [error, setError] = useState(""),
-    { add } = useContext(CartContext);
+    { add } = useContext(CartContext),
+    { user } = useContext(AuthContext);
+  const canShop = !user || user.role === "customer";
   useEffect(() => {
     request(`/products/${encodeURIComponent(slug)}`)
       .then((data) => {
@@ -482,11 +493,13 @@ function ProductDetails({ slug }) {
             <div className="offer-box"><h3>Available offers</h3><p>✓ Free delivery on orders above ₹999</p><p>✓ Secure payment and easy order tracking</p><p>✓ 7-day replacement for eligible products</p></div>
             <p className="product-description">{product.description || "A considered everyday essential."}</p>
             <dl className="product-meta"><div><dt>SKU</dt><dd>{product.sku}</dd></div><div><dt>Availability</dt><dd>{product.stock ? `${product.stock} items in stock` : "Sold out"}</dd></div></dl>
-            <div className="purchase-row">
-              <label>Quantity<select value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} disabled={!product.stock}>{Array.from({ length: Math.min(product.stock || 0, 10) }, (_, i) => i + 1).map((number) => <option key={number}>{number}</option>)}</select></label>
-              <button className="add-cart-action" disabled={!product.stock} onClick={addSelected}>Add to cart</button>
-              <button className="buy-now-action" disabled={!product.stock} onClick={() => { addSelected(); go("/checkout"); }}>Buy now</button>
-            </div>
+            {canShop && (
+              <div className="purchase-row">
+                <label>Quantity<select value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} disabled={!product.stock}>{Array.from({ length: Math.min(product.stock || 0, 10) }, (_, i) => i + 1).map((number) => <option key={number}>{number}</option>)}</select></label>
+                <button className="add-cart-action" disabled={!product.stock} onClick={addSelected}>Add to cart</button>
+                <button className="buy-now-action" disabled={!product.stock} onClick={() => { addSelected(); go("/checkout"); }}>Buy now</button>
+              </div>
+            )}
             <div className="delivery-check"><b>Delivery</b><span>Enter your PIN code at checkout to confirm delivery availability.</span></div>
           </div>
         </section>
@@ -1774,8 +1787,13 @@ function Router() {
   if (path === "/") return <Store />;
   if (path.startsWith("/product/"))
     return <ProductDetails slug={decodeURIComponent(path.slice(9))} />;
-  if (path === "/cart") return <Cart />;
-  if (path === "/checkout") return <Checkout />;
+  if (path === "/cart" || path === "/checkout") {
+    if (user && user.role !== "customer") {
+      history.replaceState({}, "", rolePath[user.role]);
+      return <Dashboard role={user.role} />;
+    }
+    return path === "/cart" ? <Cart /> : <Checkout />;
+  }
   if (path === "/login") return <AuthPage />;
   if (path === "/customer/login") return <AuthPage customerOnly />;
   if (path === "/register") return <AuthPage register />;
