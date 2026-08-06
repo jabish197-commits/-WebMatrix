@@ -392,7 +392,18 @@ app.get("/api/manage/products", authenticate, allowRoles("super_admin","admin"),
 });
 
 app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
-  try{const fields=["name","slug","description","sku","price","compare_at_price","stock","image_url","images","category_id","is_featured","is_active"];const product=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(!product.name||!product.slug||!product.sku||product.price===undefined)return res.status(400).json({message:"Name, slug, SKU, and price are required"});const{data,error}=await supabase.from("products").insert(product).select().single();if(error)throw error;res.status(201).json(data);}catch(error){next(error);}
+  try {
+    const fields=["name","description","price","compare_at_price","stock","image_url","images","category_id","is_featured","is_active"];
+    const product=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));
+    if(!product.name||product.price===undefined)return res.status(400).json({message:"Product name and price are required"});
+    const baseSlug=String(product.name).toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"product";
+    const uniqueCode=randomBytes(3).toString("hex");
+    product.slug=`${baseSlug}-${uniqueCode}`;
+    product.sku=`WM-${uniqueCode.toUpperCase()}`;
+    const{data,error}=await supabase.from("products").insert(product).select().single();
+    if(error)throw error;
+    res.status(201).json(data);
+  }catch(error){next(error);}
 });
 
 app.patch("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{

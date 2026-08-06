@@ -1100,6 +1100,7 @@ function ProductManager({ role }) {
   const [products, setProducts] = useState([]),
     [categories, setCategories] = useState([]),
     [message, setMessage] = useState(""),
+    [newImagePreview, setNewImagePreview] = useState(""),
     [editingProduct, setEditingProduct] = useState(null);
   const load = () => {
     request("/manage/products").then(setProducts);
@@ -1200,6 +1201,7 @@ function ProductManager({ role }) {
         body: JSON.stringify(f),
       });
       form.reset();
+      setNewImagePreview("");
       setMessage("Product created");
       load();
     } catch (err) {
@@ -1211,49 +1213,62 @@ function ProductManager({ role }) {
       <span className="eyebrow">CATALOG</span>
       <h1>Products</h1>
       <div className="manager-grid">
-        <form className="panel settings" onSubmit={submit}>
-          <h2>Add product</h2>
-          {["name", "slug", "sku", "price", "stock"].map((k) => (
-            <label key={k}>
-              {k.replace("_", " ")}
+        <form className="panel settings product-create-card" onSubmit={submit}>
+          <div className="product-form-header">
+            <span>NEW ITEM</span>
+            <h2>Add product</h2>
+            <p>Enter the customer-facing details. Product URL and inventory code are created automatically.</p>
+          </div>
+          <div className="product-create-fields">
+            <label className="wide-field">
+              <span>Product name</span>
+              <small>Use a short, clear name customers can recognise.</small>
+              <input name="name" placeholder="Example: Everyday travel backpack" required />
+            </label>
+            <label>
+              <span>Selling price</span>
+              <small>Amount in Indian rupees</small>
+              <div className="money-input"><b>₹</b><input name="price" type="number" min="0" step="0.01" placeholder="0.00" required /></div>
+            </label>
+            <label>
+              <span>Available stock</span>
+              <small>Units ready to sell</small>
+              <input name="stock" type="number" min="0" placeholder="0" required />
+            </label>
+            <label className="wide-field">
+              <span>Category</span>
+              <small>Helps customers filter the collection.</small>
+              <select name="category_id">
+                <option value="">Uncategorised</option>
+                {categories.map((c) => <option value={c.id} key={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+            <label className="wide-field">
+              <span>Description</span>
+              <small>Describe the product, materials, benefits, or key features.</small>
+              <textarea name="description" rows="5" placeholder="Tell customers what makes this product useful..." />
+            </label>
+            <label className="file-field product-image-drop wide-field">
+              <span>Product image</span>
+              <small>Upload a clear square or landscape JPG, PNG, or WebP image.</small>
+              {newImagePreview && <img src={newImagePreview} alt="New product preview" />}
               <input
-                name={k}
-                type={["price", "stock"].includes(k) ? "number" : "text"}
-                min="0"
-                step={k === "price" ? "0.01" : undefined}
-                required={!k.includes("image")}
+                name="productImage"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  setNewImagePreview(file ? URL.createObjectURL(file) : "");
+                }}
               />
             </label>
-          ))}
-          <label className="file-field">
-            Product image
-            <input
-              name="productImage"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-            />
-          </label>
-          <label>
-            Category
-            <select name="category_id">
-              <option value="">Uncategorised</option>
-              {categories.map((c) => (
-                <option value={c.id} key={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Description
-            <textarea name="description" />
-          </label>
-          <label className="check-field">
-            <span>Feature on storefront</span>
-            <input name="is_featured" type="checkbox" />
-          </label>
-          <button className="button">Add product</button>
-          {message && <p>{message}</p>}
+            <label className="featured-toggle wide-field">
+              <input name="is_featured" type="checkbox" />
+              <span><b>Feature on storefront</b><small>Highlight this product in the customer collection.</small></span>
+            </label>
+          </div>
+          <button className="button product-submit">Create product</button>
+          {message && <p className="product-form-message" aria-live="polite">{message}</p>}
         </form>
         <section className="data-list">
           {products.map((p) => (
