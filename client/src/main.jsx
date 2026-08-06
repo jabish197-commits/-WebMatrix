@@ -872,6 +872,11 @@ function Shell({ role, children }) {
 }
 function Dashboard({ role }) {
   const { user } = useContext(AuthContext);
+  const [dashboard, setDashboard] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    request("/dashboard").then(setDashboard).catch((err) => setError(err.message));
+  }, []);
   const welcomeMessage =
     role === "customer"
       ? sessionStorage.getItem("webmatrix_welcome") ||
@@ -884,22 +889,66 @@ function Dashboard({ role }) {
         {role === "customer" ? `Hello, ${user.name}` : "Commerce overview"}
       </h1>
       <p className="lead">{welcomeMessage}</p>
-      <div className="stats">
-        <article>
-          <b>Your role</b>
-          <strong>{role.replace("_", " ")}</strong>
-        </article>
-        <article>
-          <b>Store</b>
-          <strong>Live</strong>
-        </article>
-        <article>
-          <b>Access</b>
-          <strong>
-            {role === "super_admin" ? "Full control" : "Role based"}
-          </strong>
-        </article>
-      </div>
+      {!dashboard && !error && <p className="dashboard-loading">Loading live store data…</p>}
+      {error && <p className="error">{error}</p>}
+      {dashboard && (
+        <>
+          <div className="stats operational-stats">
+            {(role === "customer"
+              ? [
+                  ["Total orders", dashboard.metrics.totalOrders],
+                  ["Active orders", dashboard.metrics.activeOrders],
+                  ["Delivered", dashboard.metrics.completedOrders],
+                  ["Total spent", money(dashboard.metrics.totalSpent)],
+                ]
+              : [
+                  ["Revenue collected", money(dashboard.metrics.revenue)],
+                  ["Total orders", dashboard.metrics.totalOrders],
+                  ["Orders in progress", dashboard.metrics.pendingOrders],
+                  ["Active products", dashboard.metrics.products],
+                  ["Customers", dashboard.metrics.customers],
+                  ["Inventory value", money(dashboard.metrics.inventoryValue)],
+                ]
+            ).map(([label, value]) => (
+              <article key={label}><b>{label}</b><strong>{value}</strong></article>
+            ))}
+          </div>
+          <div className="dashboard-grid">
+            <section className="dashboard-panel">
+              <div className="dashboard-panel-head">
+                <div><span className="eyebrow">LATEST ACTIVITY</span><h2>Recent orders</h2></div>
+                <a href={role === "customer" ? "/customer/orders" : `/${role.replace("_", "-")}/orders`}>View all</a>
+              </div>
+              {dashboard.recentOrders.length ? (
+                <div className="dashboard-orders">
+                  {dashboard.recentOrders.map((order) => (
+                    <article key={order.id}>
+                      <div><strong>{order.order_number}</strong><small>{new Date(order.created_at).toLocaleDateString("en-IN")}</small></div>
+                      <span className={`status ${order.status}`}>{order.status}</span>
+                      <b>{money(order.total)}</b>
+                    </article>
+                  ))}
+                </div>
+              ) : <div className="dashboard-empty">No orders yet.</div>}
+            </section>
+            {role !== "customer" && (
+              <section className="dashboard-panel">
+                <div className="dashboard-panel-head">
+                  <div><span className="eyebrow">INVENTORY</span><h2>Low stock</h2></div>
+                  <a href={`/${role.replace("_", "-")}/products`}>Manage</a>
+                </div>
+                {dashboard.lowStockProducts.length ? (
+                  <div className="stock-list">
+                    {dashboard.lowStockProducts.map((product) => (
+                      <article key={product.id}><div><strong>{product.name}</strong><small>{product.sku}</small></div><b>{product.stock} left</b></article>
+                    ))}
+                  </div>
+                ) : <div className="dashboard-empty">Inventory levels are healthy.</div>}
+              </section>
+            )}
+          </div>
+        </>
+      )}
     </Shell>
   );
 }

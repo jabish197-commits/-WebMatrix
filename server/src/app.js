@@ -139,9 +139,78 @@ app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res
   } catch (error) { next(error); }
 });
 
-app.get("/api/dashboard", authenticate, (req, res) => res.json({
-  message: `Welcome to the ${req.user.role.replace("_", " ")} dashboard`, role: req.user.role
-}));
+app.get("/api/dashboard", authenticate, async (req, res, next) => {
+  try {
+    const isCustomer = req.user.role === "customer";
+    let ordersQuery = supabase
+      .from("orders")
+      .select("id,order_number,status,payment_method,payment_status,total,created_at")
+      .order("created_at", { ascending: false });
+    if (isCustomer) ordersQuery = ordersQuery.eq("user_id", req.user.id);
+
+    const queries = [ordersQuery];
+    if (!isCustomer) {
+      queries.push(
+        supabase.from("products").select("id,name,sku,stock,price,is_active").eq("is_active", true),
+        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "customer"),
+        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "admin"),
+      );
+    }
+
+    const [ordersResult, productsResult, customersResult, adminsResult] = await Promise.all(queries);
+    for (const result of [ordersResult, productsResult, customersResult, adminsResult].filter(Boolean)) {
+      if (result.error) throw result.error;
+    }
+
+    const orders = ordersResult.data || [];
+    const products = productsResult?.data || [];
+    const completedRevenue = orders
+      .filter((order) => order.payment_status === "paid" || (order.payment_method === "cod" && order.status === "delivered"))
+      .reduce((sum, order) => sum + Number(order.total || 0), 0);
+    const pendingOrders = orders.filter((order) => !["delivered", "cancelled"].includes(order.status)).length;
+    const recentOrders = orders.slice(0, 6);
+
+    if (isCustomer) {
+      return res.json({
+        role: req.user.role,
+        metrics: {
+          totalOrders: orders.length,
+          activeOrders: pendingOrders,
+          completedOrders: orders.filter((order) => order.status === "delivered").length,
+          totalSpent: completedRevenue,
+        },
+        recentOrders,
+      });
+    }
+
+    const allLowStockProducts = products
+      .filter((product) => Number(product.stock) <= 10)
+      .sort((a, b) => Number(a.stock) - Number(b.stock));
+    const lowStockProducts = allLowStockProducts.slice(0, 6);
+    const inventoryValue = products.reduce(
+      (sum, product) => sum + Number(product.price || 0) * Number(product.stock || 0),
+      0,
+    );
+
+    res.json({
+      role: req.user.role,
+      metrics: {
+        revenue: completedRevenue,
+        totalOrders: orders.length,
+        pendingOrders,
+        products: products.length,
+        lowStock: allLowStockProducts.length,
+        inventoryValue,
+        customers: customersResult.count || 0,
+        admins: adminsResult.count || 0,
+      },
+      recentOrders,
+      lowStockProducts,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.get("/api/categories", async (_req, res, next) => {
   try { const {data,error}=await supabase.from("categories").select("*").eq("is_active",true).order("name");if(error)throw error;res.json(data); }
