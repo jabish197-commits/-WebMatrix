@@ -981,7 +981,9 @@ function ProductManager({ role }) {
     request("/manage/products").then(setProducts);
     request("/categories").then(setCategories);
   };
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
   const updateProduct = async (product, changes, successMessage) => {
     try {
       setMessage("Updating product...");
@@ -1276,7 +1278,9 @@ function OrderManager({ role }) {
     [paymentFilter, setPaymentFilter] = useState("all"),
     [paymentSearch, setPaymentSearch] = useState("");
   const load = () => request("/manage/orders").then(setOrders);
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
   const change = async (id, status) => {
     await request(`/manage/orders/${id}/status`, {
       method: "PATCH",
