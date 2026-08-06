@@ -1724,12 +1724,13 @@ function Admins() {
   const [message, setMessage] = useState("");
   const submit = async (e) => {
     e.preventDefault();
-    const form = Object.fromEntries(new FormData(e.currentTarget));
+    const formElement = e.currentTarget;
+    const form = Object.fromEntries(new FormData(formElement));
     form.permissions = ["customer.view", "catalog.manage", "orders.manage"];
     try {
       const admin = await request("/admins", { method: "POST", body: JSON.stringify(form) });
       setMessage(admin.accountUpdated ? "Existing user promoted to Admin successfully" : "Admin created successfully");
-      e.currentTarget.reset();
+      formElement.reset();
     } catch (err) {
       setMessage(err.message);
     }
