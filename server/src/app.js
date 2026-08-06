@@ -19,7 +19,11 @@ const isWebMatrixVercelOrigin = (origin) => {
     const url = new URL(origin);
     return url.protocol === "https:"
       && url.hostname.endsWith(".vercel.app")
-      && (url.hostname === "webmatrix-delta.vercel.app" || url.hostname.startsWith("webmatrix-"));
+      && (
+        url.hostname === "web-matrix-delta.vercel.app"
+        || url.hostname.startsWith("web-matrix-")
+        || url.hostname.startsWith("webmatrix-")
+      );
   } catch {
     return false;
   }
