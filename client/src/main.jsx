@@ -263,7 +263,7 @@ function StoreHeader() {
   const { user, logout } = useContext(AuthContext),
     { quantity } = useContext(CartContext),
     { settings } = useContext(ThemeContext);
-  const canShop = !user || user.role === "customer";
+  const canShop = !user || user.role === "customer" || user.role === "admin";
   return (
     <header className="store-header">
       <a className="brand" href="/">
@@ -336,7 +336,7 @@ function Store() {
     { add } = useContext(CartContext),
     { user } = useContext(AuthContext),
     { settings } = useContext(ThemeContext);
-  const canShop = !user || user.role === "customer";
+  const canShop = !user || user.role === "customer" || user.role === "admin";
   useEffect(() => {
     request("/products")
       .then(setProducts)
@@ -455,7 +455,7 @@ function ProductDetails({ slug }) {
     [error, setError] = useState(""),
     { add } = useContext(CartContext),
     { user } = useContext(AuthContext);
-  const canShop = !user || user.role === "customer";
+  const canShop = !user || user.role === "customer" || user.role === "admin";
   useEffect(() => {
     request(`/products/${encodeURIComponent(slug)}`)
       .then((data) => {
@@ -631,7 +631,7 @@ function Checkout() {
     go("/customer/login");
     return null;
   }
-  if (user.role !== "customer") {
+  if (user.role === "super_admin") {
     go(rolePath[user.role]);
     return null;
   }
@@ -665,7 +665,7 @@ function Checkout() {
         order = await request("/orders", { method: "POST", body: JSON.stringify({ items, address, paymentMethod: "cod", notes: f.notes }) });
       }
       setCart([]);
-      go(`/customer/orders?placed=${order.order_number}`);
+      go(`${user.role === "admin" ? "/admin/orders" : "/customer/orders"}?placed=${order.order_number}`);
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -1840,7 +1840,7 @@ function Router() {
   if (path.startsWith("/product/"))
     return <ProductDetails slug={decodeURIComponent(path.slice(9))} />;
   if (path === "/cart" || path === "/checkout") {
-    if (user && user.role !== "customer") {
+    if (user?.role === "super_admin") {
       history.replaceState({}, "", rolePath[user.role]);
       return <Dashboard role={user.role} />;
     }

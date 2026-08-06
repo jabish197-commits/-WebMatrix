@@ -292,7 +292,7 @@ async function createCommerceOrder(userId, items, address, paymentMethod, notes)
   return order;
 }
 
-app.post("/api/payments/razorpay/order", authenticate, allowRoles("customer"), async (req, res, next) => {
+app.post("/api/payments/razorpay/order", authenticate, allowRoles("customer","admin"), async (req, res, next) => {
   try {
     const credentials = razorpayCredentials();
     const quote = await cartQuote(req.body.items);
@@ -307,7 +307,7 @@ app.post("/api/payments/razorpay/order", authenticate, allowRoles("customer"), a
   } catch (error) { next(error); }
 });
 
-app.post("/api/payments/razorpay/verify", authenticate, allowRoles("customer"), async (req, res, next) => {
+app.post("/api/payments/razorpay/verify", authenticate, allowRoles("customer","admin"), async (req, res, next) => {
   try {
     const credentials = razorpayCredentials();
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, items, address, notes = "" } = req.body;
@@ -355,11 +355,11 @@ app.post("/api/manage/categories", authenticate, allowRoles("super_admin","admin
   try{const{name,slug,description="",image_url=""}=req.body;if(!name||!slug)return res.status(400).json({message:"Name and slug are required"});const{data,error}=await supabase.from("categories").insert({name,slug,description,image_url}).select().single();if(error)throw error;res.status(201).json(data);}catch(error){next(error);}
 });
 
-app.post("/api/orders", authenticate, allowRoles("customer"), async (req,res,next)=>{
+app.post("/api/orders", authenticate, allowRoles("customer","admin"), async (req,res,next)=>{
   try{const{items,address,paymentMethod="cod",notes=""}=req.body;if(paymentMethod!=="cod")return res.status(400).json({message:"Online payments must be completed through the verified Razorpay flow"});if(!Array.isArray(items)||!address?.fullName||!address?.phone||!address?.line1||!address?.city||!address?.state||!address?.postalCode)return res.status(400).json({message:"Cart and complete delivery address are required"});const order=await createCommerceOrder(req.user.id,items,address,"cod",notes);res.status(201).json(order);}catch(error){next(error);}
 });
 
-app.post("/api/orders/manual-upi", authenticate, allowRoles("customer"), async (req,res,next)=>{
+app.post("/api/orders/manual-upi", authenticate, allowRoles("customer","admin"), async (req,res,next)=>{
   try{
     const{items,address,reference:paymentReference,notes=""}=req.body,reference=String(paymentReference||"").trim();
     if(!/^[A-Za-z0-9-]{8,35}$/.test(reference))return res.status(400).json({message:"Invalid payment reference"});
