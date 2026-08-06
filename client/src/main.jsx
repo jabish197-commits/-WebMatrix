@@ -1742,14 +1742,16 @@ function Settings() {
         {changeHistory.length ? (
           <div className="change-history-list">
             {changeHistory.map((entry) => {
-              const changes = Object.entries(entry.metadata?.changes || {});
+              const changes = entry.metadata?.field
+                ? [[entry.metadata.field, { from: entry.metadata.from, to: entry.metadata.to }]]
+                : Object.entries(entry.metadata?.changes || {});
               return (
                 <article key={entry.id}>
                   <div className="change-history-meta">
                     <strong>{entry.actor?.name || "Super Admin"}</strong>
                     <span>{new Date(entry.created_at).toLocaleString("en-IN")}</span>
                   </div>
-                  <p>{changes.length} website setting{changes.length === 1 ? "" : "s"} changed</p>
+                  <p>{changes.length === 1 ? "Website setting changed" : `${changes.length} website settings changed`}</p>
                   <ul>
                     {changes.map(([field, values]) => (
                       <li key={field}>

@@ -97,9 +97,10 @@ app.patch("/api/settings", authenticate, allowRoles("super_admin"), async (req, 
     const dbUpdate=Object.fromEntries(Object.entries(update).map(([key,value])=>[key.replace(/[A-Z]/g,m=>`_${m.toLowerCase()}`),value]));
     const {data,error}=await supabase.from("site_settings").update({...dbUpdate,updated_at:new Date().toISOString()}).eq("singleton","main").select().single();
     if(error)throw error;
-    const changes=Object.fromEntries(Object.entries(dbUpdate).filter(([key,value])=>before[key]!==value).map(([key,value])=>[key,{from:before[key],to:value}]));
-    if(Object.keys(changes).length){
-      const {error:auditError}=await supabase.from("audit_logs").insert({actor_id:req.user.id,action:"website.settings.updated",resource:"site_settings",resource_id:data.id,metadata:{changes},ip:req.ip});
+    const changes=Object.entries(dbUpdate).filter(([key,value])=>before[key]!==value).map(([field,value])=>({field,from:before[field],to:value}));
+    if(changes.length){
+      const auditRows=changes.map((change)=>({actor_id:req.user.id,action:"website.setting.updated",resource:"site_settings",resource_id:data.id,metadata:change,ip:req.ip}));
+      const {error:auditError}=await supabase.from("audit_logs").insert(auditRows);
       if(auditError)throw auditError;
     }
     res.json(toCamelSettings(data));
