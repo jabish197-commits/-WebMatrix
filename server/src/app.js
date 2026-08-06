@@ -265,6 +265,28 @@ const liveDashboard = async (req, res, next) => {
       (sum, product) => sum + Number(product.price || 0) * Number(product.stock || 0),
       0,
     );
+    const salesTrend = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - (6 - index));
+      const nextDay = new Date(day);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const dayOrders = orders.filter((order) => {
+        const createdAt = new Date(order.created_at);
+        return createdAt >= day && createdAt < nextDay;
+      });
+      return {
+        date: day.toISOString(),
+        label: day.toLocaleDateString("en-IN", { weekday: "short" }),
+        orders: dayOrders.length,
+        revenue: dayOrders
+          .filter((order) => order.payment_status === "paid" || (order.payment_method === "cod" && order.status === "delivered"))
+          .reduce((sum, order) => sum + Number(order.total || 0), 0),
+      };
+    });
+    const inventoryLeaders = [...products]
+      .sort((a, b) => Number(b.price) * Number(b.stock) - Number(a.price) * Number(a.stock))
+      .slice(0, 5);
 
     res.json({
       role: req.user.role,
@@ -280,6 +302,8 @@ const liveDashboard = async (req, res, next) => {
       },
       recentOrders,
       lowStockProducts,
+      salesTrend,
+      inventoryLeaders,
     });
   } catch (error) {
     next(error);

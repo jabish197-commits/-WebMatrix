@@ -1007,6 +1007,35 @@ function Shell({ role, children }) {
     </div>
   );
 }
+function SalesTrendChart({ trend = [] }) {
+  const width = 700,
+    height = 220,
+    padding = 34,
+    maxRevenue = Math.max(...trend.map((day) => Number(day.revenue || 0)), 1),
+    points = trend.map((day, index) => ({
+      ...day,
+      x: padding + (index * (width - padding * 2)) / Math.max(trend.length - 1, 1),
+      y: height - padding - (Number(day.revenue || 0) / maxRevenue) * (height - padding * 2),
+    })),
+    line = points.map((point) => `${point.x},${point.y}`).join(" "),
+    area = points.length
+      ? `M ${points[0].x} ${height - padding} L ${points.map((point) => `${point.x} ${point.y}`).join(" L ")} L ${points.at(-1).x} ${height - padding} Z`
+      : "";
+  return (
+    <div className="sales-chart">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Revenue collected during the last seven days">
+        {[0, 1, 2, 3].map((lineNumber) => {
+          const y = padding + (lineNumber * (height - padding * 2)) / 3;
+          return <line key={lineNumber} x1={padding} x2={width - padding} y1={y} y2={y} className="chart-grid-line" />;
+        })}
+        {area && <path d={area} className="chart-area" />}
+        {line && <polyline points={line} className="chart-line" />}
+        {points.map((point) => <circle key={point.date} cx={point.x} cy={point.y} r="5" className="chart-point"><title>{point.label}: {money(point.revenue)} from {point.orders} orders</title></circle>)}
+      </svg>
+      <div className="chart-labels">{points.map((point) => <span key={point.date}>{point.label}</span>)}</div>
+    </div>
+  );
+}
 function Dashboard({ role }) {
   const { user } = useContext(AuthContext);
   const [dashboard, setDashboard] = useState(null);
@@ -1057,6 +1086,24 @@ function Dashboard({ role }) {
               <article key={label}><b>{label}</b><strong>{value}</strong></article>
             ))}
           </div>
+          {role !== "customer" && (
+            <div className="analytics-overview-grid">
+              <section className="dashboard-panel revenue-panel">
+                <div className="dashboard-panel-head">
+                  <div><span className="eyebrow">SALES INSIGHT</span><h2>Revenue trend</h2><p>Completed revenue from the last seven days</p></div>
+                  <strong>{money(dashboard.metrics.revenue)}</strong>
+                </div>
+                <SalesTrendChart trend={dashboard.salesTrend} />
+              </section>
+              <section className="dashboard-panel operations-panel">
+                <div className="dashboard-panel-head"><div><span className="eyebrow">OPERATIONS</span><h2>Store status</h2></div></div>
+                <a href={`/${role.replace("_", "-")}/orders`}><span>Orders requiring attention</span><b>{dashboard.metrics.pendingOrders}</b></a>
+                <a href={`/${role.replace("_", "-")}/products`}><span>Low-stock products</span><b>{dashboard.metrics.lowStock}</b></a>
+                <div><span>Registered customers</span><b>{dashboard.metrics.customers}</b></div>
+                {role === "super_admin" && <a href="/super-admin/admins"><span>Active administrators</span><b>{dashboard.metrics.admins}</b></a>}
+              </section>
+            </div>
+          )}
           <div className="dashboard-grid">
             <section className="dashboard-panel">
               <div className="dashboard-panel-head">
@@ -1076,6 +1123,7 @@ function Dashboard({ role }) {
               ) : <div className="dashboard-empty">No orders yet.</div>}
             </section>
             {role !== "customer" && (
+              <div className="dashboard-side-stack">
               <section className="dashboard-panel">
                 <div className="dashboard-panel-head">
                   <div><span className="eyebrow">INVENTORY</span><h2>Low stock</h2></div>
@@ -1089,6 +1137,13 @@ function Dashboard({ role }) {
                   </div>
                 ) : <div className="dashboard-empty">Inventory levels are healthy.</div>}
               </section>
+              <section className="dashboard-panel inventory-leaders">
+                <div className="dashboard-panel-head"><div><span className="eyebrow">CATALOG</span><h2>Inventory leaders</h2></div></div>
+                {(dashboard.inventoryLeaders || []).map((product, index) => (
+                  <article key={product.id}><span>{index + 1}</span><div><b>{product.name}</b><small>{product.stock} units · {money(Number(product.price) * Number(product.stock))} value</small></div></article>
+                ))}
+              </section>
+              </div>
             )}
           </div>
         </>
