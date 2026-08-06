@@ -839,6 +839,33 @@ function Shell({ role, children }) {
           Log out
         </button>
       </aside>
+      <header className="mobile-dashboard-header">
+        <div>
+          <a className="brand" href="/">{settings?.platformName || "WebMatrix"}</a>
+          <small>{role.replace("_", " ")}</small>
+        </div>
+        <details className="mobile-dashboard-menu">
+          <summary aria-label="Open dashboard navigation">☰</summary>
+          <nav>
+            <a href={rolePath[role]}>Overview</a>
+            {role !== "customer" && (
+              <>
+                <a href={`/${role.replace("_", "-")}/products`}>Products</a>
+                <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>
+              </>
+            )}
+            {role === "super_admin" && (
+              <>
+                <a href="/super-admin/settings">Store settings</a>
+                <a href="/super-admin/admins">Admins</a>
+              </>
+            )}
+            {role === "customer" && <a href="/customer/orders">My orders</a>}
+            <a href="/">View store</a>
+            <button onClick={() => { logout(); go("/"); }}>Log out</button>
+          </nav>
+        </details>
+      </header>
       <main>{children}</main>
     </div>
   );

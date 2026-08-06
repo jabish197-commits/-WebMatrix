@@ -32,6 +32,7 @@ body{background-color:var(--store-bg,#f7f5ef);background-image:var(--store-backg
 
 /* Responsive storefront navigation and hero */
 .mobile-store-actions{display:none}.shop-hero h1{overflow-wrap:anywhere}.cart-link{white-space:nowrap}
+.mobile-dashboard-header{display:none}
 @media(max-width:900px){
   .desktop-store-nav{display:none!important}
   .mobile-store-actions{display:flex;align-items:center;gap:10px}
@@ -54,4 +55,14 @@ body{background-color:var(--store-bg,#f7f5ef);background-image:var(--store-backg
   .shop-hero h1{font-size:clamp(2.75rem,13vw,3.65rem);line-height:.94;letter-spacing:-.065em;margin:18px 0}
   .shop-hero p{font-size:1.05rem;line-height:1.62}
   .hero-orb{width:min(55vw,205px)}
+}
+
+@media(max-width:760px){
+  .mobile-dashboard-header{height:72px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;background:#121a2b;color:white;position:sticky;top:0;z-index:30;box-shadow:0 8px 24px #121a2b20}
+  .mobile-dashboard-header>div{display:grid;gap:2px}.mobile-dashboard-header .brand{color:white;font-size:1.15rem}.mobile-dashboard-header small{color:#96a0b6;text-transform:capitalize}
+  .mobile-dashboard-menu{position:relative}.mobile-dashboard-menu summary{list-style:none;width:42px;height:42px;display:grid;place-items:center;border:1px solid #ffffff30;border-radius:10px;font-size:1.25rem;cursor:pointer}.mobile-dashboard-menu summary::-webkit-details-marker{display:none}
+  .mobile-dashboard-menu nav{position:absolute;right:0;top:52px;width:min(78vw,280px);display:grid;gap:3px;padding:12px;background:#121a2b;border:1px solid #ffffff24;border-radius:12px;box-shadow:0 22px 55px #0005}
+  .mobile-dashboard-menu a,.mobile-dashboard-menu button{display:block;width:100%;padding:12px 14px;border:0;border-radius:8px;background:transparent;color:#eef2f8;text-align:left;font:600 1rem var(--store-font,"DM Sans");cursor:pointer}
+  .mobile-dashboard-menu a:hover,.mobile-dashboard-menu button:hover{background:#ffffff12}.mobile-dashboard-menu button{margin-top:6px;border-top:1px solid #ffffff20;color:#ffb4b4}
+  .app-shell main{padding:34px 24px 70px}.app-shell main>h1{font-size:clamp(2.35rem,11vw,3.2rem);line-height:1}.app-shell .lead{font-size:1.05rem;line-height:1.55}.stats{margin-top:32px;gap:16px}.stats article{padding:24px}
 }
