@@ -463,6 +463,8 @@ function ProductDetails({ slug }) {
   const [product, setProduct] = useState(null),
     [selectedImage, setSelectedImage] = useState(""),
     [quantity, setQuantity] = useState(1),
+    [pinCode, setPinCode] = useState(""),
+    [deliveryMessage, setDeliveryMessage] = useState(""),
     [error, setError] = useState(""),
     { add } = useContext(CartContext),
     { user } = useContext(AuthContext);
@@ -511,7 +513,47 @@ function ProductDetails({ slug }) {
                 <button className="buy-now-action" disabled={!product.stock} onClick={() => { addSelected(); go("/checkout"); }}>Buy now</button>
               </div>
             )}
-            <div className="delivery-check"><b>Delivery</b><span>Enter your PIN code at checkout to confirm delivery availability.</span></div>
+            <form
+              className="delivery-check"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setDeliveryMessage(
+                  /^[1-9]\d{5}$/.test(pinCode)
+                    ? `PIN code ${pinCode} accepted. Delivery availability will be confirmed with your complete address at checkout.`
+                    : "Enter a valid 6-digit Indian PIN code.",
+                );
+              }}
+            >
+              <b>Delivery</b>
+              <div>
+                <label htmlFor="delivery-pin">Check your PIN code</label>
+                <div className="delivery-pin-row">
+                  <input
+                    id="delivery-pin"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    maxLength="6"
+                    pattern="[1-9][0-9]{5}"
+                    placeholder="Enter 6-digit PIN code"
+                    value={pinCode}
+                    onChange={(event) => {
+                      setPinCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                      setDeliveryMessage("");
+                    }}
+                    required
+                  />
+                  <button type="submit">Check</button>
+                </div>
+                {deliveryMessage && (
+                  <p
+                    className={/accepted/.test(deliveryMessage) ? "delivery-success" : "delivery-error"}
+                    aria-live="polite"
+                  >
+                    {deliveryMessage}
+                  </p>
+                )}
+              </div>
+            </form>
           </div>
         </section>
       </main>
