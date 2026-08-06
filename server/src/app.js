@@ -92,9 +92,30 @@ app.patch("/api/settings", authenticate, allowRoles("super_admin"), async (req, 
     const fields = ["platformName", "logoUrl", "bannerUrl", "backgroundImageUrl", "primaryColor", "accentColor", "textColor", "homeHeading", "homeText", "aboutText", "contactEmail", "merchantUpiId", "storefrontFont", "storefrontTextColor", "storefrontBackgroundColor", "headerBackgroundColor", "heroStartColor", "heroEndColor", "circleColor", "buttonColor", "buttonTextColor", "collectionBackgroundColor", "cardBackgroundColor", "cardBorderColor", "cardBorderStyle", "cardBorderWidth", "cardRadius", "cardsPerRow", "collectionProductLimit"];
     const update = Object.fromEntries(fields.filter((key) => req.body[key] !== undefined).map((key) => [key, req.body[key]]));
     if (update.merchantUpiId && !/^[\w.-]{2,}@[\w.-]{2,}$/.test(update.merchantUpiId)) return res.status(400).json({ message: "Enter a valid merchant UPI ID, for example shop@bank" });
+    const {data:before,error:beforeError}=await supabase.from("site_settings").select("*").eq("singleton","main").single();
+    if(beforeError)throw beforeError;
     const dbUpdate=Object.fromEntries(Object.entries(update).map(([key,value])=>[key.replace(/[A-Z]/g,m=>`_${m.toLowerCase()}`),value]));
-    const {data,error}=await supabase.from("site_settings").update({...dbUpdate,updated_at:new Date().toISOString()}).eq("singleton","main").select().single(); if(error)throw error; res.json(toCamelSettings(data));
+    const {data,error}=await supabase.from("site_settings").update({...dbUpdate,updated_at:new Date().toISOString()}).eq("singleton","main").select().single();
+    if(error)throw error;
+    const changes=Object.fromEntries(Object.entries(dbUpdate).filter(([key,value])=>before[key]!==value).map(([key,value])=>[key,{from:before[key],to:value}]));
+    if(Object.keys(changes).length){
+      const {error:auditError}=await supabase.from("audit_logs").insert({actor_id:req.user.id,action:"website.settings.updated",resource:"site_settings",resource_id:data.id,metadata:{changes},ip:req.ip});
+      if(auditError)throw auditError;
+    }
+    res.json(toCamelSettings(data));
   } catch (error) { next(error); }
+});
+
+app.get("/api/settings/history",authenticate,allowRoles("super_admin"),async(_req,res,next)=>{
+  try{
+    const {data:logs,error}=await supabase.from("audit_logs").select("id,actor_id,action,resource,resource_id,metadata,created_at").eq("resource","site_settings").order("created_at",{ascending:false}).limit(50);
+    if(error)throw error;
+    const actorIds=[...new Set(logs.map((log)=>log.actor_id).filter(Boolean))];
+    let actors=[];
+    if(actorIds.length){const {data,error:actorsError}=await supabase.from("users").select("id,name,email").in("id",actorIds);if(actorsError)throw actorsError;actors=data;}
+    const actorMap=new Map(actors.map((actor)=>[actor.id,actor]));
+    res.json(logs.map((log)=>({...log,actor:actorMap.get(log.actor_id)||null})));
+  }catch(error){next(error);}
 });
 
 app.get("/api/users", authenticate, allowRoles("super_admin", "admin"), requirePermission("customer.view"), async (req, res, next) => {

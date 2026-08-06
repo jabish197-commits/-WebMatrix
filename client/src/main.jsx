@@ -1397,7 +1397,19 @@ function MyOrders() {
 }
 function Settings() {
   const { settings, setSettings, settingsError } = useContext(ThemeContext),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [changeHistory, setChangeHistory] = useState([]),
+    [historyError, setHistoryError] = useState("");
+  const loadChangeHistory = () =>
+    request("/settings/history", { cache: "no-store" })
+      .then((rows) => {
+        setChangeHistory(rows);
+        setHistoryError("");
+      })
+      .catch((error) => setHistoryError(error.message));
+  useEffect(() => {
+    loadChangeHistory();
+  }, []);
   if (!settings)
     return (
       <Shell role="super_admin">
@@ -1415,6 +1427,7 @@ function Settings() {
       });
       setSettings(updated);
       setMessage(`${label} deleted`);
+      loadChangeHistory();
     } catch (error) {
       setMessage(error.message);
     }
@@ -1717,6 +1730,40 @@ function Settings() {
           )}
         </div>
       </form>
+      <section className="change-history">
+        <div className="change-history-head">
+          <div>
+            <span className="eyebrow">AUDIT HISTORY</span>
+            <h2>Website changes</h2>
+          </div>
+          <button type="button" onClick={loadChangeHistory}>Refresh</button>
+        </div>
+        {historyError && <p className="error">{historyError}</p>}
+        {changeHistory.length ? (
+          <div className="change-history-list">
+            {changeHistory.map((entry) => {
+              const changes = Object.entries(entry.metadata?.changes || {});
+              return (
+                <article key={entry.id}>
+                  <div className="change-history-meta">
+                    <strong>{entry.actor?.name || "Super Admin"}</strong>
+                    <span>{new Date(entry.created_at).toLocaleString("en-IN")}</span>
+                  </div>
+                  <p>{changes.length} website setting{changes.length === 1 ? "" : "s"} changed</p>
+                  <ul>
+                    {changes.map(([field, values]) => (
+                      <li key={field}>
+                        <b>{field.replaceAll("_", " ")}</b>
+                        <span>{String(values.from ?? "Empty")} → {String(values.to ?? "Empty")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              );
+            })}
+          </div>
+        ) : !historyError && <div className="dashboard-empty">No website changes recorded yet.</div>}
+      </section>
     </Shell>
   );
 }
