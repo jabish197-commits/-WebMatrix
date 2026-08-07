@@ -1,9 +1,10 @@
-alter table public.site_settings
-  add column if not exists delivery_fee numeric(12,2) not null default 79,
-  add column if not exists free_delivery_threshold numeric(12,2) not null default 999;
-
+-- Destructive cleanup requested for product fields no longer used by WebMatrix.
+alter table public.order_items drop column if exists sku;
 alter table public.products
-  add column if not exists delivery_fee numeric(12,2) not null default 79 check(delivery_fee >= 0);
+  drop column if exists slug,
+  drop column if exists sku,
+  drop column if exists compare_at_price,
+  drop column if exists images;
 
 create or replace function public.checkout_order(p_user_id uuid,p_items jsonb,p_address jsonb,p_payment_method text default 'cod',p_notes text default '')
 returns uuid language plpgsql security definer set search_path=public as $$

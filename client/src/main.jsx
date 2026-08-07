@@ -427,7 +427,7 @@ function Store() {
         <div className="product-grid">
           {shown.map((p) => (
             <article className="product-card" key={p.id}>
-              <a className="product-image product-image-link" href={`/product/${p.slug}`} aria-label={`View ${p.name}`}>
+              <a className="product-image product-image-link" href={`/product/${p.id}`} aria-label={`View ${p.name}`}>
                 {p.image_url ? (
                   <img
                     src={p.image_url}
@@ -443,11 +443,10 @@ function Store() {
               </a>
               <div className="product-copy">
                 <small>{p.categories?.name || "Collection"}</small>
-                <h3><a href={`/product/${p.slug}`}>{p.name}</a></h3>
+                <h3><a href={`/product/${p.id}`}>{p.name}</a></h3>
                 <p>{p.description || "A considered everyday essential."}</p>
                 <div>
                   <strong>{money(p.price)}</strong>
-                  {p.compare_at_price && <del>{money(p.compare_at_price)}</del>}
                   {canShop && (
                     <button disabled={!p.stock} onClick={() => add(p)}>
                       {p.stock ? "Add to cart" : "Sold out"}
@@ -469,9 +468,8 @@ function Store() {
     </>
   );
 }
-function ProductDetails({ slug }) {
+function ProductDetails({ id }) {
   const [product, setProduct] = useState(null),
-    [selectedImage, setSelectedImage] = useState(""),
     [quantity, setQuantity] = useState(1),
     [pinCode, setPinCode] = useState(""),
     [deliveryMessage, setDeliveryMessage] = useState(""),
@@ -480,23 +478,16 @@ function ProductDetails({ slug }) {
     { user } = useContext(AuthContext);
   const canShop = !user || user.role === "customer" || user.role === "admin";
   useEffect(() => {
-    request(`/products/${encodeURIComponent(slug)}`)
-      .then((data) => {
-        setProduct(data);
-        setSelectedImage(data.image_url || data.images?.[0] || "");
-      })
+    request(`/products/${encodeURIComponent(id)}`)
+      .then(setProduct)
       .catch((err) => setError(err.message));
-  }, [slug]);
+  }, [id]);
   if (error)
     return <><StoreHeader /><main className="shop-page product-state"><h1>Product unavailable</h1><p>{error}</p><a className="button" href="/">Return to shop</a></main><Footer /></>;
   if (!product)
     return <><StoreHeader /><main className="shop-page product-state"><h2>Loading product...</h2></main></>;
 
-  const images = [...new Set([product.image_url, ...(product.images || [])].filter(Boolean))],
-    discount = product.compare_at_price
-      ? Math.round((1 - Number(product.price) / Number(product.compare_at_price)) * 100)
-      : 0,
-    addSelected = () => add(product, quantity);
+  const addSelected = () => add(product, quantity);
   return (
     <>
       <StoreHeader />
@@ -504,18 +495,17 @@ function ProductDetails({ slug }) {
         <nav className="breadcrumbs"><a href="/">Home</a><span>›</span><span>{product.categories?.name || "Products"}</span><span>›</span><b>{product.name}</b></nav>
         <section className="product-details">
           <div className="product-gallery">
-            {images.length > 1 && <div className="product-thumbnails">{images.map((image) => <button className={selectedImage === image ? "active" : ""} key={image} onClick={() => setSelectedImage(image)}><img src={image} alt={`${product.name} view`} /></button>)}</div>}
-            <div className="product-main-image">{selectedImage ? <img src={selectedImage} alt={product.name} /> : <span>{product.name[0]}</span>}</div>
+            <div className="product-main-image">{product.image_url ? <img src={product.image_url} alt={product.name} /> : <span>{product.name[0]}</span>}</div>
           </div>
           <div className="product-information">
             <span className="eyebrow">{product.categories?.name || "COLLECTION"}</span>
             <h1>{product.name}</h1>
             <div className="rating-row"><b>4.4 ★</b><span>128 ratings &amp; 34 reviews</span></div>
-            <div className="detail-price"><strong>{money(product.price)}</strong>{product.compare_at_price && <del>{money(product.compare_at_price)}</del>}{discount > 0 && <em>{discount}% off</em>}</div>
+            <div className="detail-price"><strong>{money(product.price)}</strong></div>
             <p className="tax-note">Inclusive of all taxes</p>
             <div className="offer-box"><h3>Available offers</h3><p>✓ Free delivery on orders above ₹999</p><p>✓ Secure payment and easy order tracking</p><p>✓ 7-day replacement for eligible products</p></div>
             <p className="product-description">{product.description || "A considered everyday essential."}</p>
-            <dl className="product-meta"><div><dt>SKU</dt><dd>{product.sku}</dd></div><div><dt>Availability</dt><dd>{product.stock ? `${product.stock} items in stock` : "Sold out"}</dd></div></dl>
+            <dl className="product-meta"><div><dt>Availability</dt><dd>{product.stock ? `${product.stock} items in stock` : "Sold out"}</dd></div></dl>
             {canShop && (
               <div className="purchase-row">
                 <label>Quantity<select value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} disabled={!product.stock}>{Array.from({ length: Math.min(product.stock || 0, 10) }, (_, i) => i + 1).map((number) => <option key={number}>{number}</option>)}</select></label>
@@ -1151,7 +1141,7 @@ function Dashboard({ role }) {
                 {dashboard.lowStockProducts.length ? (
                   <div className="stock-list">
                     {dashboard.lowStockProducts.map((product) => (
-                      <article key={product.id}><div><strong>{product.name}</strong><small>{product.sku}</small></div><b>{product.stock} left</b></article>
+                      <article key={product.id}><div><strong>{product.name}</strong></div><b>{product.stock} left</b></article>
                     ))}
                   </div>
                 ) : <div className="dashboard-empty">Inventory levels are healthy.</div>}
@@ -1380,9 +1370,7 @@ function ProductManager({ role }) {
                     {p.is_active ? "Visible" : "Hidden"}
                   </em>
                 </span>
-                <small>
-                  {p.sku} · Stock {p.stock}
-                </small>
+                <small>Stock {p.stock}</small>
                 <small>Delivery {money(p.delivery_fee ?? settings?.deliveryFee ?? 79)}</small>
               </div>
               <strong>{money(p.price)}</strong>
@@ -2135,7 +2123,7 @@ function Router() {
   }, []);
   if (path === "/") return <Store />;
   if (path.startsWith("/product/"))
-    return <ProductDetails slug={decodeURIComponent(path.slice(9))} />;
+    return <ProductDetails id={decodeURIComponent(path.slice(9))} />;
   if (path === "/cart" || path === "/checkout") {
     if (user?.role === "super_admin") {
       history.replaceState({}, "", rolePath[user.role]);

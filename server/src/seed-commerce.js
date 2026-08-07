@@ -53,7 +53,6 @@ const productImageUrl = (name, categorySlug, index) => {
 };
 
 const priceBases = { accessories: 690, "home-living": 590, wellness: 390 };
-const skuPrefixes = { accessories: "ACC", "home-living": "HOM", wellness: "WEL" };
 const descriptions = {
   accessories: "A practical everyday accessory designed for comfort, durability, and easy styling.",
   "home-living": "A thoughtfully made home essential that brings function and calm to everyday spaces.",
@@ -71,29 +70,25 @@ const categoryIds = Object.fromEntries(savedCategories.map((category) => [catego
 
 const catalog = Object.entries(categoryProducts).flatMap(([categorySlug, names]) =>
   names.map((name, index) => {
-    const slug = slugify(name);
     const price = priceBases[categorySlug] + index * 100;
 
     return {
       name,
-      slug,
-      sku: `WM-${skuPrefixes[categorySlug]}-${String(index + 1).padStart(3, "0")}`,
       category_id: categoryIds[categorySlug],
       price,
-      compare_at_price: index % 4 === 0 ? price + 300 : null,
       stock: 12 + ((index * 7) % 39),
       is_featured: index < 4,
       is_active: true,
       description: descriptions[categorySlug],
       image_url: productImageUrl(name, categorySlug, index),
-      images: [],
     };
   }),
 );
 
-const { error: productError } = await supabase
-  .from("products")
-  .upsert(catalog, { onConflict: "slug" });
+const seededNames = catalog.map((product) => product.name);
+const { error: cleanupError } = await supabase.from("products").delete().in("name", seededNames);
+if (cleanupError) throw cleanupError;
+const { error: productError } = await supabase.from("products").insert(catalog);
 
 if (productError) throw productError;
 

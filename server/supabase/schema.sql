@@ -60,9 +60,8 @@ create table if not exists public.categories (
 );
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(), category_id uuid references public.categories(id) on delete set null,
-  name text not null, slug text not null unique, description text default '', sku text not null unique,
-  price numeric(12,2) not null check(price >= 0), compare_at_price numeric(12,2) check(compare_at_price is null or compare_at_price >= price),
-  stock integer not null default 0 check(stock >= 0), image_url text default '', images text[] not null default '{}',
+  name text not null, description text default '', price numeric(12,2) not null check(price >= 0),
+  stock integer not null default 0 check(stock >= 0), image_url text default '',
   delivery_fee numeric(12,2) not null default 79 check(delivery_fee >= 0),
   is_featured boolean not null default false, is_active boolean not null default true,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
@@ -88,7 +87,7 @@ create table if not exists public.orders (
 );
 create table if not exists public.order_items (
   id uuid primary key default gen_random_uuid(), order_id uuid not null references public.orders(id) on delete cascade,
-  product_id uuid references public.products(id) on delete set null, product_name text not null, sku text not null,
+  product_id uuid references public.products(id) on delete set null, product_name text not null,
   price numeric(12,2) not null, quantity integer not null check(quantity > 0), line_total numeric(12,2) not null
 );
 create index if not exists products_category_idx on public.products(category_id);
@@ -120,7 +119,7 @@ begin
   values(v_number,p_user_id,p_payment_method,v_subtotal,v_shipping,v_subtotal+v_shipping,p_address,p_notes) returning id into v_order_id;
   for v_item in select * from jsonb_array_elements(p_items) loop
     v_qty:=(v_item->>'quantity')::integer; select * into v_product from products where id=(v_item->>'productId')::uuid for update;
-    insert into order_items(order_id,product_id,product_name,sku,price,quantity,line_total) values(v_order_id,v_product.id,v_product.name,v_product.sku,v_product.price,v_qty,v_product.price*v_qty);
+    insert into order_items(order_id,product_id,product_name,price,quantity,line_total) values(v_order_id,v_product.id,v_product.name,v_product.price,v_qty,v_product.price*v_qty);
     update products set stock=stock-v_qty,updated_at=now() where id=v_product.id;
   end loop;
   return v_order_id;

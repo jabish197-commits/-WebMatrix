@@ -228,7 +228,7 @@ const liveDashboard = async (req, res, next) => {
     const queries = [ordersQuery];
     if (!isCustomer) {
       queries.push(
-        supabase.from("products").select("id,name,sku,stock,price,is_active").eq("is_active", true),
+        supabase.from("products").select("id,name,stock,price,is_active").eq("is_active", true),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "customer"),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "admin"),
       );
@@ -330,8 +330,8 @@ app.get("/api/products", async (req, res, next) => {
   } catch(error){next(error);}
 });
 
-app.get("/api/products/:slug", async (req, res, next) => {
-  try { const {data,error}=await supabase.from("products").select("*,categories(id,name,slug)").eq("slug",req.params.slug).eq("is_active",true).single();if(error)throw error;res.json(data); }
+app.get("/api/products/:id", async (req, res, next) => {
+  try { const {data,error}=await supabase.from("products").select("*,categories(id,name,slug)").eq("id",req.params.id).eq("is_active",true).single();if(error)throw error;res.json(data); }
   catch(error){next(error);}
 });
 
@@ -425,15 +425,11 @@ app.get("/api/manage/products", authenticate, allowRoles("super_admin","admin"),
 
 app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
   try {
-    const fields=["name","description","price","compare_at_price","stock","delivery_fee","image_url","images","category_id","is_featured","is_active"];
+    const fields=["name","description","price","stock","delivery_fee","image_url","category_id","is_featured","is_active"];
     const product=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));
     if(!product.name||product.price===undefined)return res.status(400).json({message:"Product name and price are required"});
     if(!Number.isFinite(Number(product.delivery_fee))||Number(product.delivery_fee)<0)return res.status(400).json({message:"Delivery charge must be zero or more"});
     product.category_id=product.category_id||null;
-    const baseSlug=String(product.name).toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"product";
-    const uniqueCode=randomBytes(3).toString("hex");
-    product.slug=`${baseSlug}-${uniqueCode}`;
-    product.sku=`WM-${uniqueCode.toUpperCase()}`;
     const{data,error}=await supabase.from("products").insert(product).select().single();
     if(error)throw error;
     res.status(201).json(data);
@@ -441,7 +437,7 @@ app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin")
 });
 
 app.patch("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
-  try{const fields=["name","slug","description","sku","price","compare_at_price","stock","delivery_fee","image_url","images","category_id","is_featured","is_active"];const update=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(update.category_id!==undefined)update.category_id=update.category_id||null;if(update.delivery_fee!==undefined&&(!Number.isFinite(Number(update.delivery_fee))||Number(update.delivery_fee)<0))return res.status(400).json({message:"Delivery charge must be zero or more"});const{data,error}=await supabase.from("products").update({...update,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
+  try{const fields=["name","description","price","stock","delivery_fee","image_url","category_id","is_featured","is_active"];const update=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(update.category_id!==undefined)update.category_id=update.category_id||null;if(update.delivery_fee!==undefined&&(!Number.isFinite(Number(update.delivery_fee))||Number(update.delivery_fee)<0))return res.status(400).json({message:"Delivery charge must be zero or more"});const{data,error}=await supabase.from("products").update({...update,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
 app.delete("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
