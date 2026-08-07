@@ -44,6 +44,10 @@ create table if not exists public.roles (id uuid primary key default gen_random_
 create table if not exists public.permissions (id uuid primary key default gen_random_uuid(), key text unique not null, description text, created_at timestamptz default now());
 create table if not exists public.pages (id uuid primary key default gen_random_uuid(), slug text unique not null, title text, heading text, content text, seo_title text, seo_description text, is_published boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists public.banners (id uuid primary key default gen_random_uuid(), title text, image_url text not null, link_url text, position integer default 0, is_active boolean default true, created_at timestamptz default now());
+alter table public.banners add column if not exists description text default '';
+alter table public.banners add column if not exists button_text text default 'Shop now';
+alter table public.banners add column if not exists background_color text default '#eef5e9';
+alter table public.banners add column if not exists text_color text default '#152018';
 create table if not exists public.contact_messages (id uuid primary key default gen_random_uuid(), name text, email text, subject text, message text, status text default 'new', created_at timestamptz default now());
 create table if not exists public.notifications (id uuid primary key default gen_random_uuid(), user_id uuid references public.users(id) on delete cascade, title text, message text, read_at timestamptz, created_at timestamptz default now());
 create table if not exists public.refresh_tokens (id uuid primary key default gen_random_uuid(), user_id uuid references public.users(id) on delete cascade, token_hash text not null, expires_at timestamptz not null, created_at timestamptz default now());

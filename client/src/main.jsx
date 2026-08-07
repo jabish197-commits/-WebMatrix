@@ -344,6 +344,8 @@ function StoreHeader() {
 function Store() {
   const [products, setProducts] = useState([]),
     [categories, setCategories] = useState([]),
+    [banners, setBanners] = useState([]),
+    [activeBanner, setActiveBanner] = useState(0),
     [search, setSearch] = useState(""),
     [category, setCategory] = useState(""),
     { add } = useContext(CartContext),
@@ -357,7 +359,15 @@ function Store() {
     request("/categories")
       .then(setCategories)
       .catch(() => {});
+    request("/banners")
+      .then(setBanners)
+      .catch(() => {});
   }, []);
+  useEffect(() => {
+    if (banners.length < 2) return undefined;
+    const timer = setInterval(() => setActiveBanner((index) => (index + 1) % banners.length), 5000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
   const shown = products
     .filter(
       (p) =>
@@ -377,6 +387,33 @@ function Store() {
           <span>{offerText}</span><span aria-hidden="true">{offerText}</span>
         </div>
       </aside>}
+      {banners.length > 0 && (
+        <section className="offer-carousel" aria-label="Featured offers">
+          <div className="offer-slides">
+            {banners.map((banner, index) => (
+              <article
+                className={`offer-slide${index === activeBanner ? " active" : ""}`}
+                key={banner.id}
+                aria-hidden={index !== activeBanner}
+                style={{ background: banner.background_color || "#eef5e9", color: banner.text_color || "#152018" }}
+              >
+                <div className="offer-slide-copy">
+                  <span>WEBMATRIX OFFER</span>
+                  <h2>{banner.title}</h2>
+                  {banner.description && <p>{banner.description}</p>}
+                  <a href={banner.link_url || "#catalog"}>{banner.button_text || "Shop now"}</a>
+                </div>
+                <div className="offer-slide-image"><img src={banner.image_url} alt={banner.title} /></div>
+              </article>
+            ))}
+          </div>
+          {banners.length > 1 && <>
+            <button className="offer-arrow previous" aria-label="Previous offer" onClick={() => setActiveBanner((activeBanner - 1 + banners.length) % banners.length)}>‹</button>
+            <button className="offer-arrow next" aria-label="Next offer" onClick={() => setActiveBanner((activeBanner + 1) % banners.length)}>›</button>
+            <div className="offer-dots">{banners.map((banner, index) => <button key={banner.id} className={index === activeBanner ? "active" : ""} aria-label={`Show offer ${index + 1}`} onClick={() => setActiveBanner(index)} />)}</div>
+          </>}
+        </section>
+      )}
       <section className="shop-hero">
         <div>
           <span className="eyebrow">CURATED FOR EVERYDAY LIFE</span>
@@ -1688,6 +1725,84 @@ function DeliverySettings({ role = "admin" }) {
     </form>
   </Shell>;
 }
+function OfferCarouselManager() {
+  const [banners, setBanners] = useState([]),
+    [message, setMessage] = useState(""),
+    [preview, setPreview] = useState("");
+  const load = () => request("/manage/banners").then(setBanners).catch((error) => setMessage(error.message));
+  useEffect(() => { load(); }, []);
+  const createSlide = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget, formData = new FormData(form), image = formData.get("slideImage");
+    if (!(image instanceof File) || !image.size) return setMessage("Choose an offer image");
+    try {
+      setMessage("Uploading offer image...");
+      const imageUrl = await uploadImage(image, "offers");
+      await request("/manage/banners", { method: "POST", body: JSON.stringify({
+        title: formData.get("title"), description: formData.get("description"), button_text: formData.get("button_text"),
+        link_url: formData.get("link_url"), background_color: formData.get("background_color"), text_color: formData.get("text_color"),
+        position: Number(formData.get("position")), image_url: imageUrl, is_active: true,
+      }) });
+      form.reset(); setPreview(""); setMessage("Offer slide created"); load();
+    } catch (error) { setMessage(error.message); }
+  };
+  const updateSlide = async (event, banner) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget), image = formData.get("slideImage"), values = {
+      title: formData.get("title"), description: formData.get("description"), button_text: formData.get("button_text"),
+      link_url: formData.get("link_url"), background_color: formData.get("background_color"), text_color: formData.get("text_color"),
+      position: Number(formData.get("position")),
+    };
+    try {
+      setMessage("Saving offer slide...");
+      if (image instanceof File && image.size) values.image_url = await uploadImage(image, "offers");
+      await request(`/manage/banners/${banner.id}`, { method: "PATCH", body: JSON.stringify(values) });
+      if (values.image_url && banner.image_url) await deleteImage(banner.image_url).catch(() => {});
+      setMessage("Offer slide updated"); load();
+    } catch (error) { setMessage(error.message); }
+  };
+  const toggleSlide = async (banner) => {
+    try {
+      await request(`/manage/banners/${banner.id}`, { method: "PATCH", body: JSON.stringify({ is_active: !banner.is_active }) });
+      setMessage(banner.is_active ? "Offer slide hidden" : "Offer slide published"); load();
+    } catch (error) { setMessage(error.message); }
+  };
+  const removeSlide = async (banner) => {
+    if (!confirm(`Delete the offer slide “${banner.title}”?`)) return;
+    try {
+      await request(`/manage/banners/${banner.id}`, { method: "DELETE" });
+      if (banner.image_url) await deleteImage(banner.image_url).catch(() => {});
+      setMessage("Offer slide deleted"); load();
+    } catch (error) { setMessage(error.message); }
+  };
+  return <section className="offer-manager">
+    <div className="offer-manager-heading"><div><span className="eyebrow">HOMEPAGE CAROUSEL</span><h2>Offer slides</h2><p>Create rotating image offers like a modern commerce storefront.</p></div><b>{banners.length} slides</b></div>
+    <form className="offer-slide-form offer-create-form" onSubmit={createSlide}>
+      <label>Offer title<input name="title" placeholder="Big savings on everyday essentials" required /></label>
+      <label>Short description<input name="description" placeholder="Limited-time prices across the collection" /></label>
+      <label>Button text<input name="button_text" defaultValue="Shop now" required /></label>
+      <label>Button link<input name="link_url" defaultValue="#catalog" required /></label>
+      <label>Background color<input name="background_color" type="color" defaultValue="#eef5e9" /></label>
+      <label>Text color<input name="text_color" type="color" defaultValue="#152018" /></label>
+      <label>Display order<input name="position" type="number" min="0" defaultValue={banners.length} /></label>
+      <label className="offer-image-field">Offer image{preview && <img src={preview} alt="New offer preview" />}<input name="slideImage" type="file" accept="image/*" required onChange={(event) => { const file = event.target.files?.[0]; setPreview(file ? URL.createObjectURL(file) : ""); }} /></label>
+      <button className="button">Add offer slide</button>
+    </form>
+    {message && <p className="product-form-message offer-manager-message" aria-live="polite">{message}</p>}
+    <div className="offer-admin-list">{banners.map((banner) => <form className="offer-slide-form offer-edit-slide" key={banner.id} onSubmit={(event) => updateSlide(event, banner)}>
+      <img className="offer-admin-image" src={banner.image_url} alt={banner.title} />
+      <label>Title<input name="title" defaultValue={banner.title} required /></label>
+      <label>Description<input name="description" defaultValue={banner.description || ""} /></label>
+      <label>Button<input name="button_text" defaultValue={banner.button_text || "Shop now"} required /></label>
+      <label>Link<input name="link_url" defaultValue={banner.link_url || "#catalog"} required /></label>
+      <label>Background<input name="background_color" type="color" defaultValue={banner.background_color || "#eef5e9"} /></label>
+      <label>Text color<input name="text_color" type="color" defaultValue={banner.text_color || "#152018"} /></label>
+      <label>Order<input name="position" type="number" min="0" defaultValue={banner.position || 0} /></label>
+      <label>Replace image<input name="slideImage" type="file" accept="image/*" /></label>
+      <div className="offer-admin-actions"><button className="button">Save slide</button><button type="button" onClick={() => toggleSlide(banner)}>{banner.is_active ? "Hide" : "Publish"}</button><button type="button" className="danger-action" onClick={() => removeSlide(banner)}>Delete</button></div>
+    </form>)}</div>
+  </section>;
+}
 function Settings() {
   const { settings, setSettings, settingsError } = useContext(ThemeContext),
     [message, setMessage] = useState(""),
@@ -2076,6 +2191,7 @@ function Settings() {
           )}
         </div>
       </form>
+      <OfferCarouselManager />
       <section className="change-history">
         <div className="change-history-head">
           <div>

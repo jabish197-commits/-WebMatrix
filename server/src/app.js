@@ -49,6 +49,7 @@ const welcomeFor = (user) =>
   user.role === "customer"
     ? `Welcome ${user.name}. Enjoy shopping with WebMatrix.`
     : "";
+const isSafeOfferLink = (value) => /^(#[A-Za-z0-9_-]+|\/(?!\/)[^\s]*|https:\/\/[^\s]+)$/i.test(String(value || ""));
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", name: "WebMatrix API" }));
 
@@ -136,6 +137,55 @@ app.get("/api/auth/me", authenticate, (req, res) => res.json({ user: safeUser(re
 app.get("/api/settings/public", async (_req, res, next) => {
   try { const {data,error}=await supabase.from("site_settings").select("*").eq("singleton","main").single(); if(error)throw error; res.json({...toCamelSettings(data),razorpayConfigured:Boolean(process.env.RAZORPAY_KEY_ID?.trim()&&process.env.RAZORPAY_KEY_SECRET?.trim())}); }
   catch (error) { next(error); }
+});
+
+app.get("/api/banners", async (_req, res, next) => {
+  try {
+    const { data, error } = await supabase.from("banners").select("*").eq("is_active", true).order("position").order("created_at");
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) { next(error); }
+});
+
+app.get("/api/manage/banners", authenticate, allowRoles("super_admin"), async (_req, res, next) => {
+  try {
+    const { data, error } = await supabase.from("banners").select("*").order("position").order("created_at");
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) { next(error); }
+});
+
+app.post("/api/manage/banners", authenticate, allowRoles("super_admin"), async (req, res, next) => {
+  try {
+    const title = String(req.body.title || "").trim(), imageUrl = String(req.body.image_url || "").trim();
+    if (!title || !imageUrl) return res.status(400).json({ message: "Offer title and image are required" });
+    const linkUrl = String(req.body.link_url || "#catalog").trim();
+    if (!isSafeOfferLink(linkUrl)) return res.status(400).json({ message: "Offer link must be a storefront path, page section, or secure HTTPS URL" });
+    const row = { title, image_url: imageUrl, description: String(req.body.description || "").trim(), button_text: String(req.body.button_text || "Shop now").trim(), link_url: linkUrl, background_color: String(req.body.background_color || "#eef5e9"), text_color: String(req.body.text_color || "#152018"), position: Math.max(0, Number(req.body.position) || 0), is_active: req.body.is_active !== false };
+    const { data, error } = await supabase.from("banners").insert(row).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (error) { next(error); }
+});
+
+app.patch("/api/manage/banners/:id", authenticate, allowRoles("super_admin"), async (req, res, next) => {
+  try {
+    const allowed = ["title", "image_url", "description", "button_text", "link_url", "background_color", "text_color", "position", "is_active"];
+    const update = Object.fromEntries(allowed.filter((key) => req.body[key] !== undefined).map((key) => [key, req.body[key]]));
+    if (update.link_url !== undefined && !isSafeOfferLink(update.link_url)) return res.status(400).json({ message: "Offer link must be a storefront path, page section, or secure HTTPS URL" });
+    if (update.position !== undefined) update.position = Math.max(0, Number(update.position) || 0);
+    const { data, error } = await supabase.from("banners").update(update).eq("id", req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (error) { next(error); }
+});
+
+app.delete("/api/manage/banners/:id", authenticate, allowRoles("super_admin"), async (req, res, next) => {
+  try {
+    const { error } = await supabase.from("banners").delete().eq("id", req.params.id);
+    if (error) throw error;
+    res.json({ message: "Offer slide deleted" });
+  } catch (error) { next(error); }
 });
 
 app.patch("/api/settings", authenticate, allowRoles("super_admin", "admin"), async (req, res, next) => {
