@@ -362,9 +362,15 @@ function Store() {
         (!category || p.categories?.slug === category),
     )
     .slice(0, Number(settings?.collectionProductLimit || 12));
+  const offerText = `LIMITED-TIME OFFER  •  Free delivery on orders above ${money(Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)))}  •  Shop new arrivals today`;
   return (
     <>
       <StoreHeader />
+      <aside className="offer-marquee" aria-label="Current shopping offer">
+        <div className="offer-marquee-track">
+          <span>{offerText}</span><span aria-hidden="true">{offerText}</span>
+        </div>
+      </aside>
       <section className="shop-hero">
         <div>
           <span className="eyebrow">CURATED FOR EVERYDAY LIFE</span>
@@ -391,6 +397,7 @@ function Store() {
           </a>
         </div>
         <div className="hero-orb">
+          <b className="offer-burst">SPECIAL<br />OFFER</b>
           <span>NEW</span>
           <strong>
             Everyday
