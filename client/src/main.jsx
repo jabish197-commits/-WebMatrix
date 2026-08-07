@@ -1733,8 +1733,6 @@ function Settings() {
       "cardRadius",
       "cardsPerRow",
       "collectionProductLimit",
-      "deliveryFee",
-      "freeDeliveryThreshold",
     ].forEach((k) => (values[k] = Number(values[k])));
     try {
       for (const [inputName, settingName, folder] of imageFields) {
@@ -2009,18 +2007,6 @@ function Settings() {
               <button type="button">Example button</button>
             </div>
           </div>
-        </section>
-        <section className="theme-section">
-          <h2>Delivery charges</h2>
-          <label>
-            Delivery charge (₹)
-            <input name="deliveryFee" type="number" min="0" step="0.01" defaultValue={settings.deliveryFee ?? 79} />
-          </label>
-          <label>
-            Free delivery above (₹)
-            <input name="freeDeliveryThreshold" type="number" min="0" step="0.01" defaultValue={settings.freeDeliveryThreshold ?? 999} />
-          </label>
-          <p>Use 0 as the threshold to disable free delivery. Use a ₹0 delivery charge to make every order free to deliver.</p>
         </section>
         <div className="theme-save">
           <button className="button">Save and apply theme</button>
