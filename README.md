@@ -12,6 +12,16 @@ Multi-role MERN starter with Super Admin, Admin, and Customer dashboards.
 6. Run `npm run seed` to create the Super Admin.
 7. Run `npm run dev`.
 
+## Password-reset email
+
+The login page links to `/forgot-password`. The API sends a one-time reset link through Resend and stores only its SHA-256 hash in Supabase. Configure these server-only Render variables:
+
+- `RESEND_API_KEY`: your Resend API key.
+- `EMAIL_FROM`: `WebMatrix <onboarding@resend.dev>` for testing with the Resend account email, or an address on your verified sending domain for real customers.
+- `CLIENT_URL`: the production Vercel URL, such as `https://web-matrix-delta.vercel.app`.
+
+Run `server/supabase/password-reset.sql` once in the Supabase SQL Editor. Reset links expire after 30 minutes, can be used only once, and requesting a new link invalidates the previous one.
+
 Client: http://localhost:5173
 
 API: http://localhost:5000/api

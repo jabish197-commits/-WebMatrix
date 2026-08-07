@@ -971,7 +971,8 @@ function AuthPage({ register = false, customerOnly = false }) {
 function ForgotPassword() {
   const [message, setMessage] = useState(""),
     [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [sentEmail, setSentEmail] = useState("");
   const submit = async (e) => {
     e.preventDefault();
     const emailInput = e.currentTarget.elements.email;
@@ -982,24 +983,36 @@ function ForgotPassword() {
     try {
       const result = await request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
       setMessage(result.message);
+      setSentEmail(email);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setBusy(false);
     }
   };
+  const maskedEmail = sentEmail ? sentEmail.replace(/^(.{1,2}).*(@.*)$/, "$1••••$2") : "";
   return (
     <div className="auth-page">
-      <form className="panel" onSubmit={submit}>
+      {sentEmail ? <section className="panel reset-email-sent">
+        <a className="brand" href="/">Web<span>Matrix</span></a>
+        <div className="reset-mail-icon" aria-hidden="true">✓</div>
+        <h2>Check your Gmail</h2>
+        <p>We sent a secure password-reset link to <strong>{maskedEmail}</strong>.</p>
+        <ol><li>Open Gmail and find the WebMatrix email.</li><li>Click <strong>Reset password</strong>.</li><li>Create your new password within 30 minutes.</li></ol>
+        <p className="reset-email-note">Also check your Spam or Promotions folder. Only the newest reset link will work.</p>
+        {message && <p className="success">{message}</p>}
+        <button className="button secondary-reset-action" type="button" onClick={() => { setSentEmail(""); setMessage(""); }}>Use another email</button>
+        <a className="auth-back-link" href="/login">Back to login</a>
+      </section> : <form className="panel" onSubmit={submit}>
         <a className="brand" href="/">Web<span>Matrix</span></a>
         <h2>Reset password</h2>
-        <p>Enter your registered email. We will send a secure link that expires in 30 minutes.</p>
+        <p>Enter your registered Gmail or email address. We will send a secure one-time link that expires in 30 minutes.</p>
         <label>Email<input name="email" type="email" required maxLength="254" autoComplete="email" inputMode="email" onInput={(event) => event.currentTarget.setCustomValidity("")} onBlur={(event) => validateEmailInput(event.currentTarget)} /></label>
         {error && <p className="error">{error}</p>}
         {message && <p className="success">{message}</p>}
         <button className="button" disabled={busy}>{busy ? "Sending…" : "Send reset link"}</button>
         <a className="auth-back-link" href="/login">Back to login</a>
-      </form>
+      </form>}
     </div>
   );
 }

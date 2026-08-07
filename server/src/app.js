@@ -103,13 +103,13 @@ app.post("/api/auth/forgot-password", async (req, res, next) => {
     const { data: tokenRow, error: insertError } = await supabase.from("password_reset_tokens").insert({ user_id: user.id, token_hash: tokenHash, expires_at: expiresAt }).select("id").single();
     if (insertError) throw insertError;
     const clientUrl = (process.env.CLIENT_URL || "http://localhost:5173").split(",")[0].trim().replace(/\/$/, "");
-    const resetUrl = `${clientUrl}/reset-password?token=${rawToken}`;
+    const resetUrl = `${clientUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
     try {
       await sendEmail({
         to: user.email,
         subject: "Reset your WebMatrix password",
-        text: `Reset your WebMatrix password using this link within 30 minutes: ${resetUrl}`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><h2>Reset your WebMatrix password</h2><p>Hello ${String(user.name).replace(/[<>&"]/g, "")},</p><p>This secure link expires in 30 minutes and can be used only once.</p><p><a href="${resetUrl}" style="display:inline-block;padding:12px 18px;background:#18251b;color:#fff;text-decoration:none;border-radius:8px">Reset password</a></p><p>If you did not request this, you can ignore this email.</p></div>`,
+        text: `Hello ${user.name}, reset your WebMatrix password using this one-time link within 30 minutes: ${resetUrl}`,
+        html: `<div style="background:#f3f5f8;padding:32px 16px;font-family:Arial,sans-serif;color:#152018"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #e3e7e3;border-radius:18px;padding:32px"><div style="font-size:24px;font-weight:800;margin-bottom:28px">Web<span style="color:#6d5dfc">Matrix</span></div><h1 style="font-size:28px;margin:0 0 16px">Reset your password</h1><p style="line-height:1.6">Hello ${String(user.name).replace(/[<>&"]/g, "")},</p><p style="line-height:1.6">Click the button below to create a new password. This secure link expires in 30 minutes and works only once.</p><p style="margin:28px 0"><a href="${resetUrl}" style="display:inline-block;padding:14px 22px;background:#18251b;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Reset password</a></p><p style="font-size:13px;line-height:1.5;color:#687269">If you did not request this change, ignore this email. Your current password will remain unchanged.</p></div></div>`,
       });
     } catch (emailError) {
       await supabase.from("password_reset_tokens").delete().eq("id", tokenRow.id);
