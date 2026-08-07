@@ -248,11 +248,21 @@ function Providers({ children }) {
           )
         : [...items, { ...product, quantity: Math.min(amount, product.stock) }];
     });
+  const refreshCart = async () => {
+    if (!cart.length) return;
+    const currentProducts = await request("/products");
+    const productMap = new Map(currentProducts.map((product) => [product.id, product]));
+    setCart((items) => items.flatMap((item) => {
+      const current = productMap.get(item.id);
+      if (!current) return [];
+      return [{ ...item, ...current, quantity: Math.min(item.quantity, current.stock) }];
+    }).filter((item) => item.quantity > 0));
+  };
   const quantity = cart.reduce((sum, x) => sum + x.quantity, 0);
   return (
     <ThemeContext.Provider value={{ settings, setSettings, settingsError }}>
       <AuthContext.Provider value={{ user, login, logout, acceptSession }}>
-        <CartContext.Provider value={{ cart, setCart, add, quantity }}>
+        <CartContext.Provider value={{ cart, setCart, add, quantity, refreshCart }}>
           {children}
         </CartContext.Provider>
       </AuthContext.Provider>
@@ -562,8 +572,9 @@ function ProductDetails({ slug }) {
   );
 }
 function Cart() {
-  const { cart, setCart } = useContext(CartContext),
+  const { cart, setCart, refreshCart } = useContext(CartContext),
     { settings } = useContext(ThemeContext);
+  useEffect(() => { refreshCart().catch(() => {}); }, []);
   const subtotal = cart.reduce((s, x) => s + Number(x.price) * x.quantity, 0);
   const freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999));
   const productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)), 0);
@@ -672,12 +683,13 @@ function Cart() {
 }
 function Checkout() {
   const { user } = useContext(AuthContext),
-    { cart, setCart } = useContext(CartContext),
+    { cart, setCart, refreshCart } = useContext(CartContext),
     { settings } = useContext(ThemeContext),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [paymentMethod, setPaymentMethod] = useState("cod"),
     [paymentReference] = useState(() => `WM-PAY-${Date.now().toString(36).toUpperCase()}`);
+  useEffect(() => { refreshCart().catch(() => {}); }, []);
   const checkoutSubtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0),
     freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)),
     productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)), 0),
