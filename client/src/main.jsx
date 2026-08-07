@@ -1785,7 +1785,7 @@ function OfferCarouselManager() {
       <label>Background color<input name="background_color" type="color" defaultValue="#eef5e9" /></label>
       <label>Text color<input name="text_color" type="color" defaultValue="#152018" /></label>
       <label>Display order<input name="position" type="number" min="0" defaultValue={banners.length} /></label>
-      <label className="offer-image-field">Offer image{preview && <img src={preview} alt="New offer preview" />}<input name="slideImage" type="file" accept="image/*" required onChange={(event) => { const file = event.target.files?.[0]; setPreview(file ? URL.createObjectURL(file) : ""); }} /></label>
+      <label className="offer-image-field">Offer image<small>Use a clear landscape image (recommended 1200 × 600). The complete image will be fitted inside the banner.</small>{preview && <img src={preview} alt="New offer preview" />}<input name="slideImage" type="file" accept="image/*" required onChange={(event) => { const file = event.target.files?.[0]; setPreview(file ? URL.createObjectURL(file) : ""); }} /></label>
       <button className="button">Add offer slide</button>
     </form>
     {message && <p className="product-form-message offer-manager-message" aria-live="polite">{message}</p>}
@@ -1798,7 +1798,7 @@ function OfferCarouselManager() {
       <label>Background<input name="background_color" type="color" defaultValue={banner.background_color || "#eef5e9"} /></label>
       <label>Text color<input name="text_color" type="color" defaultValue={banner.text_color || "#152018"} /></label>
       <label>Order<input name="position" type="number" min="0" defaultValue={banner.position || 0} /></label>
-      <label>Replace image<input name="slideImage" type="file" accept="image/*" /></label>
+      <label>Replace image<small>Landscape image recommended</small><input name="slideImage" type="file" accept="image/*" /></label>
       <div className="offer-admin-actions"><button className="button">Save slide</button><button type="button" onClick={() => toggleSlide(banner)}>{banner.is_active ? "Hide" : "Publish"}</button><button type="button" className="danger-action" onClick={() => removeSlide(banner)}>Delete</button></div>
     </form>)}</div>
   </section>;
