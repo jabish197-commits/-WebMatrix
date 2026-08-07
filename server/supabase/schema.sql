@@ -37,6 +37,9 @@ alter table public.site_settings add column if not exists free_delivery_threshol
 alter table public.site_settings add column if not exists offer_text text not null default 'LIMITED-TIME OFFER • Shop new arrivals today';
 alter table public.site_settings add column if not exists offer_background_color text not null default '#e7a93f';
 alter table public.site_settings add column if not exists offer_text_color text not null default '#152018';
+alter table public.site_settings add column if not exists offer_animation_enabled boolean not null default true;
+alter table public.site_settings add column if not exists offer_animation_style text not null default 'scroll-left';
+alter table public.site_settings add column if not exists offer_animation_speed integer not null default 20;
 create table if not exists public.roles (id uuid primary key default gen_random_uuid(), name text unique not null, permissions text[] default '{}', created_at timestamptz default now());
 create table if not exists public.permissions (id uuid primary key default gen_random_uuid(), key text unique not null, description text, created_at timestamptz default now());
 create table if not exists public.pages (id uuid primary key default gen_random_uuid(), slug text unique not null, title text, heading text, content text, seo_title text, seo_description text, is_published boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());

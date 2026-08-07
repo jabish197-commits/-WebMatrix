@@ -206,6 +206,7 @@ function Providers({ children }) {
               "--circle": data.circleColor || "#e7a93f",
               "--offer-bg": data.offerBackgroundColor || "#e7a93f",
               "--offer-text": data.offerTextColor || "#152018",
+              "--offer-speed": `${Math.max(5, Math.min(60, Number(data.offerAnimationSpeed) || 20))}s`,
               "--shop-button": data.buttonColor || "#18251b",
               "--shop-button-text": data.buttonTextColor || "#fff",
               "--collection-bg": data.collectionBackgroundColor || "#f7f5ef",
@@ -365,14 +366,17 @@ function Store() {
     )
     .slice(0, Number(settings?.collectionProductLimit || 12));
   const offerText = settings?.offerText || "LIMITED-TIME OFFER • Shop new arrivals today";
+  const offerAnimationStyle = ["scroll-left", "scroll-right", "pulse"].includes(settings?.offerAnimationStyle)
+    ? settings.offerAnimationStyle
+    : "scroll-left";
   return (
     <>
       <StoreHeader />
-      <aside className="offer-marquee" aria-label="Current shopping offer">
+      {settings?.offerAnimationEnabled !== false && <aside className={`offer-marquee ${offerAnimationStyle}`} aria-label="Current shopping offer">
         <div className="offer-marquee-track">
           <span>{offerText}</span><span aria-hidden="true">{offerText}</span>
         </div>
-      </aside>
+      </aside>}
       <section className="shop-hero">
         <div>
           <span className="eyebrow">CURATED FOR EVERYDAY LIFE</span>
@@ -399,7 +403,7 @@ function Store() {
           </a>
         </div>
         <div className="hero-orb">
-          <b className="offer-burst">SPECIAL<br />OFFER</b>
+          {settings?.offerAnimationEnabled !== false && <b className="offer-burst">SPECIAL<br />OFFER</b>}
           <span>NEW</span>
           <strong>
             Everyday
@@ -1725,6 +1729,7 @@ function Settings() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const values = Object.fromEntries(formData);
+    values.offerAnimationEnabled = formData.get("offerAnimationEnabled") === "on";
     const imageFields = [
       ["logoImage", "logoUrl", "logos"],
       ["bannerImage", "bannerUrl", "banners"],
@@ -1735,6 +1740,7 @@ function Settings() {
       "cardRadius",
       "cardsPerRow",
       "collectionProductLimit",
+      "offerAnimationSpeed",
     ].forEach((k) => (values[k] = Number(values[k])));
     try {
       for (const [inputName, settingName, folder] of imageFields) {
@@ -1936,6 +1942,24 @@ function Settings() {
             <label>
               Offer text color
               <input name="offerTextColor" type="color" defaultValue={settings.offerTextColor || "#152018"} />
+            </label>
+          </div>
+          <label className="featured-toggle offer-enabled-toggle">
+            <input name="offerAnimationEnabled" type="checkbox" defaultChecked={settings.offerAnimationEnabled !== false} />
+            <span><b>Show animation</b><small>Turn the storefront offer animation on or off.</small></span>
+          </label>
+          <div className="offer-motion-controls">
+            <label>
+              Animation style
+              <select name="offerAnimationStyle" defaultValue={settings.offerAnimationStyle || "scroll-left"}>
+                <option value="scroll-left">Scroll left</option>
+                <option value="scroll-right">Scroll right</option>
+                <option value="pulse">Pulse in place</option>
+              </select>
+            </label>
+            <label>
+              Animation duration (seconds)
+              <input name="offerAnimationSpeed" type="number" min="5" max="60" defaultValue={settings.offerAnimationSpeed || 20} required />
             </label>
           </div>
           <div
