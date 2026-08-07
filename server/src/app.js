@@ -138,10 +138,13 @@ app.get("/api/settings/public", async (_req, res, next) => {
   catch (error) { next(error); }
 });
 
-app.patch("/api/settings", authenticate, allowRoles("super_admin"), async (req, res, next) => {
+app.patch("/api/settings", authenticate, allowRoles("super_admin", "admin"), async (req, res, next) => {
   try {
-    const fields = ["platformName", "logoUrl", "bannerUrl", "backgroundImageUrl", "primaryColor", "accentColor", "textColor", "homeHeading", "homeText", "aboutText", "contactEmail", "merchantUpiId", "storefrontFont", "storefrontTextColor", "storefrontBackgroundColor", "headerBackgroundColor", "heroStartColor", "heroEndColor", "circleColor", "buttonColor", "buttonTextColor", "collectionBackgroundColor", "cardBackgroundColor", "cardBorderColor", "cardBorderStyle", "cardBorderWidth", "cardRadius", "cardsPerRow", "collectionProductLimit"];
+    const fields = ["platformName", "logoUrl", "bannerUrl", "backgroundImageUrl", "primaryColor", "accentColor", "textColor", "homeHeading", "homeText", "aboutText", "contactEmail", "merchantUpiId", "storefrontFont", "storefrontTextColor", "storefrontBackgroundColor", "headerBackgroundColor", "heroStartColor", "heroEndColor", "circleColor", "buttonColor", "buttonTextColor", "collectionBackgroundColor", "cardBackgroundColor", "cardBorderColor", "cardBorderStyle", "cardBorderWidth", "cardRadius", "cardsPerRow", "collectionProductLimit", "deliveryFee", "freeDeliveryThreshold"];
     const update = Object.fromEntries(fields.filter((key) => req.body[key] !== undefined).map((key) => [key, req.body[key]]));
+    if(req.user.role==="admin"&&Object.keys(update).some((key)=>!["deliveryFee","freeDeliveryThreshold"].includes(key)))return res.status(403).json({message:"Admins can update delivery settings only"});
+    if(update.deliveryFee!==undefined&&(!Number.isFinite(Number(update.deliveryFee))||Number(update.deliveryFee)<0))return res.status(400).json({message:"Delivery charge must be zero or more"});
+    if(update.freeDeliveryThreshold!==undefined&&(!Number.isFinite(Number(update.freeDeliveryThreshold))||Number(update.freeDeliveryThreshold)<0))return res.status(400).json({message:"Free-delivery threshold must be zero or more"});
     if (update.merchantUpiId && !/^[\w.-]{2,}@[\w.-]{2,}$/.test(update.merchantUpiId)) return res.status(400).json({ message: "Enter a valid merchant UPI ID, for example shop@bank" });
     const {data:before,error:beforeError}=await supabase.from("site_settings").select("*").eq("singleton","main").single();
     if(beforeError)throw beforeError;
@@ -356,7 +359,11 @@ async function cartQuote(items) {
     if (product.stock < item.quantity) throw Object.assign(new Error(`Insufficient stock for ${product.name}`), { status: 409 });
     subtotal += Number(product.price) * item.quantity;
   }
-  const shipping = subtotal >= 999 ? 0 : 79;
+  const {data:deliverySettings,error:settingsError}=await supabase.from("site_settings").select("delivery_fee,free_delivery_threshold").eq("singleton","main").single();
+  if(settingsError)throw settingsError;
+  const deliveryFee=Math.max(0,Number(deliverySettings.delivery_fee??79));
+  const freeDeliveryThreshold=Math.max(0,Number(deliverySettings.free_delivery_threshold??999));
+  const shipping = freeDeliveryThreshold>0&&subtotal>=freeDeliveryThreshold ? 0 : deliveryFee;
   return { amount: Math.round((subtotal + shipping) * 100), normalized };
 }
 
@@ -503,4 +510,4 @@ app.use((error, _req, res, _next) => {
 
 export default app;
 
-function toCamelSettings(row){ return { ...row, platformName:row.platform_name, logoUrl:row.logo_url, bannerUrl:row.banner_url, backgroundImageUrl:row.background_image_url, primaryColor:row.primary_color, accentColor:row.accent_color, textColor:row.text_color, homeHeading:row.home_heading, homeText:row.home_text, aboutText:row.about_text, contactEmail:row.contact_email, merchantUpiId:row.merchant_upi_id || "", storefrontFont:row.storefront_font, storefrontTextColor:row.storefront_text_color, storefrontBackgroundColor:row.storefront_background_color, headerBackgroundColor:row.header_background_color, heroStartColor:row.hero_start_color, heroEndColor:row.hero_end_color, circleColor:row.circle_color, buttonColor:row.button_color, buttonTextColor:row.button_text_color, collectionBackgroundColor:row.collection_background_color, cardBackgroundColor:row.card_background_color, cardBorderColor:row.card_border_color, cardBorderStyle:row.card_border_style, cardBorderWidth:row.card_border_width, cardRadius:row.card_radius, cardsPerRow:row.cards_per_row, collectionProductLimit:row.collection_product_limit }; }
+function toCamelSettings(row){ return { ...row, platformName:row.platform_name, logoUrl:row.logo_url, bannerUrl:row.banner_url, backgroundImageUrl:row.background_image_url, primaryColor:row.primary_color, accentColor:row.accent_color, textColor:row.text_color, homeHeading:row.home_heading, homeText:row.home_text, aboutText:row.about_text, contactEmail:row.contact_email, merchantUpiId:row.merchant_upi_id || "", storefrontFont:row.storefront_font, storefrontTextColor:row.storefront_text_color, storefrontBackgroundColor:row.storefront_background_color, headerBackgroundColor:row.header_background_color, heroStartColor:row.hero_start_color, heroEndColor:row.hero_end_color, circleColor:row.circle_color, buttonColor:row.button_color, buttonTextColor:row.button_text_color, collectionBackgroundColor:row.collection_background_color, cardBackgroundColor:row.card_background_color, cardBorderColor:row.card_border_color, cardBorderStyle:row.card_border_style, cardBorderWidth:row.card_border_width, cardRadius:row.card_radius, cardsPerRow:row.cards_per_row, collectionProductLimit:row.collection_product_limit, deliveryFee:Number(row.delivery_fee??79), freeDeliveryThreshold:Number(row.free_delivery_threshold??999) }; }

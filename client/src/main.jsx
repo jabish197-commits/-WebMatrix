@@ -562,8 +562,12 @@ function ProductDetails({ slug }) {
   );
 }
 function Cart() {
-  const { cart, setCart } = useContext(CartContext);
+  const { cart, setCart } = useContext(CartContext),
+    { settings } = useContext(ThemeContext);
   const subtotal = cart.reduce((s, x) => s + Number(x.price) * x.quantity, 0);
+  const deliveryFee = Math.max(0, Number(settings?.deliveryFee ?? 79));
+  const freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999));
+  const delivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold ? 0 : deliveryFee;
   return (
     <>
       <StoreHeader />
@@ -642,12 +646,12 @@ function Cart() {
               </p>
               <p>
                 <span>Delivery</span>
-                <b>{subtotal >= 999 ? "Free" : money(79)}</b>
+                <b>{delivery === 0 ? "Free" : money(delivery)}</b>
               </p>
               <hr />
               <p className="total">
                 <span>Total</span>
-                <b>{money(subtotal + (subtotal >= 999 ? 0 : 79))}</b>
+                <b>{money(subtotal + delivery)}</b>
               </p>
               <button className="button" onClick={() => go("/checkout")}>
                 Proceed to checkout
@@ -675,7 +679,10 @@ function Checkout() {
     [paymentMethod, setPaymentMethod] = useState("cod"),
     [paymentReference] = useState(() => `WM-PAY-${Date.now().toString(36).toUpperCase()}`);
   const checkoutSubtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0),
-    checkoutTotal = checkoutSubtotal + (checkoutSubtotal >= 999 ? 0 : 79),
+    deliveryFee = Math.max(0, Number(settings?.deliveryFee ?? 79)),
+    freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)),
+    checkoutDelivery = freeDeliveryThreshold > 0 && checkoutSubtotal >= freeDeliveryThreshold ? 0 : deliveryFee,
+    checkoutTotal = checkoutSubtotal + checkoutDelivery,
     upiQuery = settings?.merchantUpiId ? `pa=${encodeURIComponent(settings.merchantUpiId)}&pn=${encodeURIComponent(settings.platformName || "WebMatrix")}&am=${checkoutTotal.toFixed(2)}&cu=INR&tr=${encodeURIComponent(paymentReference)}&tn=${encodeURIComponent(paymentReference)}` : "",
     directUpiUrl = upiQuery ? `upi://pay?${upiQuery}` : "",
     googlePayUrl = upiQuery ? `gpay://upi/pay?${upiQuery}` : "",
@@ -957,10 +964,10 @@ function Shell({ role, children }) {
               <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>
             </>
           )}
-          {role === "super_admin" && (
+          {role !== "customer" && (
             <>
-              <a href="/super-admin/settings">Store settings</a>
-              <a href="/super-admin/admins">Admins</a>
+              <a href={`/${role.replace("_", "-")}/settings`}>Store settings</a>
+              {role === "super_admin" && <a href="/super-admin/admins">Admins</a>}
             </>
           )}
           {role === "customer" && <a href="/customer/orders">My orders</a>}
@@ -991,10 +998,10 @@ function Shell({ role, children }) {
                 <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>
               </>
             )}
-            {role === "super_admin" && (
+            {role !== "customer" && (
               <>
-                <a href="/super-admin/settings">Store settings</a>
-                <a href="/super-admin/admins">Admins</a>
+                <a href={`/${role.replace("_", "-")}/settings`}>Store settings</a>
+                {role === "super_admin" && <a href="/super-admin/admins">Admins</a>}
               </>
             )}
             {role === "customer" && <a href="/customer/orders">My orders</a>}
@@ -1590,6 +1597,34 @@ function MyOrders() {
     </Shell>
   );
 }
+function DeliverySettings({ role = "admin" }) {
+  const { settings, setSettings, settingsError } = useContext(ThemeContext),
+    [message, setMessage] = useState("");
+  if (!settings) return <Shell role={role}><p>{settingsError || "Loading delivery settings..."}</p></Shell>;
+  const saveDelivery = async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    values.deliveryFee = Number(values.deliveryFee);
+    values.freeDeliveryThreshold = Number(values.freeDeliveryThreshold);
+    try {
+      const updated = await request("/settings", { method: "PATCH", body: JSON.stringify(values) });
+      setSettings(updated);
+      setMessage("Delivery settings saved");
+    } catch (error) { setMessage(error.message); }
+  };
+  return <Shell role={role}>
+    <span className="eyebrow">CHECKOUT SETTINGS</span>
+    <h1>Delivery charges</h1>
+    <p className="lead">Set the delivery fee customers pay and the order value that unlocks free delivery.</p>
+    <form className="panel settings delivery-settings-card" onSubmit={saveDelivery}>
+      <label>Delivery charge (₹)<input name="deliveryFee" type="number" min="0" step="0.01" defaultValue={settings.deliveryFee ?? 79} required /></label>
+      <label>Free delivery above (₹)<input name="freeDeliveryThreshold" type="number" min="0" step="0.01" defaultValue={settings.freeDeliveryThreshold ?? 999} required /></label>
+      <small>Set the threshold to 0 to disable free delivery. Set the delivery charge to 0 for free delivery on every order.</small>
+      <button className="button">Save delivery settings</button>
+      {message && <p className="product-form-message">{message}</p>}
+    </form>
+  </Shell>;
+}
 function Settings() {
   const { settings, setSettings, settingsError } = useContext(ThemeContext),
     [message, setMessage] = useState(""),
@@ -1641,6 +1676,8 @@ function Settings() {
       "cardRadius",
       "cardsPerRow",
       "collectionProductLimit",
+      "deliveryFee",
+      "freeDeliveryThreshold",
     ].forEach((k) => (values[k] = Number(values[k])));
     try {
       for (const [inputName, settingName, folder] of imageFields) {
@@ -1916,6 +1953,18 @@ function Settings() {
             </div>
           </div>
         </section>
+        <section className="theme-section">
+          <h2>Delivery charges</h2>
+          <label>
+            Delivery charge (₹)
+            <input name="deliveryFee" type="number" min="0" step="0.01" defaultValue={settings.deliveryFee ?? 79} />
+          </label>
+          <label>
+            Free delivery above (₹)
+            <input name="freeDeliveryThreshold" type="number" min="0" step="0.01" defaultValue={settings.freeDeliveryThreshold ?? 999} />
+          </label>
+          <p>Use 0 as the threshold to disable free delivery. Use a ₹0 delivery charge to make every order free to deliver.</p>
+        </section>
         <div className="theme-save">
           <button className="button">Save and apply theme</button>
           {message && (
@@ -2072,6 +2121,7 @@ function Router() {
   if (path.endsWith("/orders"))
     return role === "customer" ? <MyOrders /> : <OrderManager role={role} />;
   if (path === "/super-admin/settings") return <Settings />;
+  if (path === "/admin/settings") return <DeliverySettings role="admin" />;
   if (path === "/super-admin/admins") return <Admins />;
   return <Dashboard role={role} />;
 }
