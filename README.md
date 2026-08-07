@@ -6,10 +6,11 @@ Multi-role MERN starter with Super Admin, Admin, and Customer dashboards.
 
 1. Copy `server/.env.example` to `server/.env`.
 2. Create a Supabase project and run `server/supabase/schema.sql` in its SQL Editor.
-3. Add `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` to `server/.env`.
-4. Run `npm run install:all`.
-5. Run `npm run seed` to create the Super Admin.
-6. Run `npm run dev`.
+3. Run `server/supabase/row-level-security.sql` in the SQL Editor to deny direct browser access and verify RLS.
+4. Add `SUPABASE_URL` and the server-only `SUPABASE_SERVICE_ROLE_KEY` to `server/.env`. Never add this key to the client, Vercel, or GitHub.
+5. Run `npm run install:all`.
+6. Run `npm run seed` to create the Super Admin.
+7. Run `npm run dev`.
 
 Client: http://localhost:5173
 

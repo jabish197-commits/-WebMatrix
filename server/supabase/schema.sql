@@ -55,10 +55,17 @@ create table if not exists public.password_reset_tokens (id uuid primary key def
 create table if not exists public.audit_logs (id uuid primary key default gen_random_uuid(), actor_id uuid references public.users(id) on delete set null, action text, resource text, resource_id text, metadata jsonb default '{}', ip text, created_at timestamptz default now());
 
 insert into public.site_settings(singleton) values ('main') on conflict (singleton) do nothing;
-alter table public.users enable row level security; alter table public.site_settings enable row level security; alter table public.roles enable row level security;
-alter table public.permissions enable row level security; alter table public.pages enable row level security; alter table public.banners enable row level security;
-alter table public.contact_messages enable row level security; alter table public.notifications enable row level security; alter table public.refresh_tokens enable row level security; alter table public.audit_logs enable row level security;
-alter table public.password_reset_tokens enable row level security;
+alter table public.users enable row level security; alter table public.users force row level security;
+alter table public.site_settings enable row level security; alter table public.site_settings force row level security;
+alter table public.roles enable row level security; alter table public.roles force row level security;
+alter table public.permissions enable row level security; alter table public.permissions force row level security;
+alter table public.pages enable row level security; alter table public.pages force row level security;
+alter table public.banners enable row level security; alter table public.banners force row level security;
+alter table public.contact_messages enable row level security; alter table public.contact_messages force row level security;
+alter table public.notifications enable row level security; alter table public.notifications force row level security;
+alter table public.refresh_tokens enable row level security; alter table public.refresh_tokens force row level security;
+alter table public.audit_logs enable row level security; alter table public.audit_logs force row level security;
+alter table public.password_reset_tokens enable row level security; alter table public.password_reset_tokens force row level security;
 revoke all on all tables in schema public from anon, authenticated;
 grant all on all tables in schema public to service_role;
 
@@ -104,8 +111,11 @@ create index if not exists products_category_idx on public.products(category_id)
 create index if not exists products_active_idx on public.products(is_active,created_at desc);
 create index if not exists orders_user_idx on public.orders(user_id,created_at desc);
 create unique index if not exists orders_gateway_reference_unique on public.orders(gateway_reference) where gateway_reference is not null;
-alter table public.categories enable row level security; alter table public.products enable row level security;
-alter table public.addresses enable row level security; alter table public.orders enable row level security; alter table public.order_items enable row level security;
+alter table public.categories enable row level security; alter table public.categories force row level security;
+alter table public.products enable row level security; alter table public.products force row level security;
+alter table public.addresses enable row level security; alter table public.addresses force row level security;
+alter table public.orders enable row level security; alter table public.orders force row level security;
+alter table public.order_items enable row level security; alter table public.order_items force row level security;
 revoke all on public.categories,public.products,public.addresses,public.orders,public.order_items from anon,authenticated;
 grant all on public.categories,public.products,public.addresses,public.orders,public.order_items to service_role;
 
