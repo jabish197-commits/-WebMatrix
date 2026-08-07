@@ -52,10 +52,16 @@ end $$;
 commit;
 
 -- Verification: every returned table should have both values set to true.
-select schemaname, tablename, rowsecurity, forcerowsecurity
-from pg_tables
-where schemaname = 'public'
-order by tablename;
+select
+  namespace.nspname as schemaname,
+  relation.relname as tablename,
+  relation.relrowsecurity as rowsecurity,
+  relation.relforcerowsecurity as forcerowsecurity
+from pg_class as relation
+join pg_namespace as namespace on namespace.oid = relation.relnamespace
+where namespace.nspname = 'public'
+  and relation.relkind in ('r', 'p')
+order by relation.relname;
 
 -- Verification: this should return no direct table grants.
 select grantee, table_name, privilege_type

@@ -8,6 +8,7 @@ test("RLS migration protects every application table", async () => {
     assert.match(sql, new RegExp(`'${table}'`), table);
   }
   assert.match(sql, /force row level security/i);
+  assert.match(sql, /relation\.relforcerowsecurity as forcerowsecurity/i);
   assert.match(sql, /revoke all privileges on all tables in schema public from anon, authenticated/i);
   assert.match(sql, /grant all privileges on all tables in schema public to service_role/i);
 });
