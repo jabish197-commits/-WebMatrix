@@ -350,20 +350,21 @@ async function cartQuote(items) {
   if (!Array.isArray(items) || !items.length) throw Object.assign(new Error("Cart is empty"), { status: 400 });
   const normalized = items.map((item) => ({ productId: String(item.productId), quantity: Number(item.quantity) }));
   if (normalized.some((item) => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1)) throw Object.assign(new Error("Invalid cart items"), { status: 400 });
-  const { data: products, error } = await supabase.from("products").select("id,name,price,stock,is_active").in("id", normalized.map((item) => item.productId));
+  const { data: products, error } = await supabase.from("products").select("id,name,price,delivery_fee,stock,is_active").in("id", normalized.map((item) => item.productId));
   if (error) throw error;
   let subtotal = 0;
+  let productDelivery = 0;
   for (const item of normalized) {
     const product = products.find((entry) => entry.id === item.productId);
     if (!product?.is_active) throw Object.assign(new Error("A product is unavailable"), { status: 409 });
     if (product.stock < item.quantity) throw Object.assign(new Error(`Insufficient stock for ${product.name}`), { status: 409 });
     subtotal += Number(product.price) * item.quantity;
+    productDelivery += Math.max(0,Number(product.delivery_fee??0)) * item.quantity;
   }
   const {data:deliverySettings,error:settingsError}=await supabase.from("site_settings").select("delivery_fee,free_delivery_threshold").eq("singleton","main").single();
   if(settingsError)throw settingsError;
-  const deliveryFee=Math.max(0,Number(deliverySettings.delivery_fee??79));
   const freeDeliveryThreshold=Math.max(0,Number(deliverySettings.free_delivery_threshold??999));
-  const shipping = freeDeliveryThreshold>0&&subtotal>=freeDeliveryThreshold ? 0 : deliveryFee;
+  const shipping = freeDeliveryThreshold>0&&subtotal>=freeDeliveryThreshold ? 0 : productDelivery;
   return { amount: Math.round((subtotal + shipping) * 100), normalized };
 }
 
@@ -424,9 +425,10 @@ app.get("/api/manage/products", authenticate, allowRoles("super_admin","admin"),
 
 app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
   try {
-    const fields=["name","description","price","compare_at_price","stock","image_url","images","category_id","is_featured","is_active"];
+    const fields=["name","description","price","compare_at_price","stock","delivery_fee","image_url","images","category_id","is_featured","is_active"];
     const product=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));
     if(!product.name||product.price===undefined)return res.status(400).json({message:"Product name and price are required"});
+    if(!Number.isFinite(Number(product.delivery_fee))||Number(product.delivery_fee)<0)return res.status(400).json({message:"Delivery charge must be zero or more"});
     product.category_id=product.category_id||null;
     const baseSlug=String(product.name).toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"product";
     const uniqueCode=randomBytes(3).toString("hex");
@@ -439,7 +441,7 @@ app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin")
 });
 
 app.patch("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
-  try{const fields=["name","slug","description","sku","price","compare_at_price","stock","image_url","images","category_id","is_featured","is_active"];const update=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(update.category_id!==undefined)update.category_id=update.category_id||null;const{data,error}=await supabase.from("products").update({...update,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
+  try{const fields=["name","slug","description","sku","price","compare_at_price","stock","delivery_fee","image_url","images","category_id","is_featured","is_active"];const update=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(update.category_id!==undefined)update.category_id=update.category_id||null;if(update.delivery_fee!==undefined&&(!Number.isFinite(Number(update.delivery_fee))||Number(update.delivery_fee)<0))return res.status(400).json({message:"Delivery charge must be zero or more"});const{data,error}=await supabase.from("products").update({...update,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
 app.delete("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{

@@ -63,9 +63,11 @@ create table if not exists public.products (
   name text not null, slug text not null unique, description text default '', sku text not null unique,
   price numeric(12,2) not null check(price >= 0), compare_at_price numeric(12,2) check(compare_at_price is null or compare_at_price >= price),
   stock integer not null default 0 check(stock >= 0), image_url text default '', images text[] not null default '{}',
+  delivery_fee numeric(12,2) not null default 79 check(delivery_fee >= 0),
   is_featured boolean not null default false, is_active boolean not null default true,
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
+alter table public.products add column if not exists delivery_fee numeric(12,2) not null default 79 check(delivery_fee >= 0);
 create table if not exists public.addresses (
   id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id) on delete cascade,
   full_name text not null, phone text not null, line1 text not null, line2 text default '', city text not null,
@@ -100,7 +102,7 @@ grant all on public.categories,public.products,public.addresses,public.orders,pu
 
 create or replace function public.checkout_order(p_user_id uuid,p_items jsonb,p_address jsonb,p_payment_method text default 'cod',p_notes text default '')
 returns uuid language plpgsql security definer set search_path=public as $$
-declare v_order_id uuid; v_subtotal numeric(12,2):=0; v_shipping numeric(12,2):=0; v_delivery_fee numeric(12,2):=79; v_free_delivery_threshold numeric(12,2):=999; v_item jsonb; v_product products%rowtype; v_qty integer; v_number text;
+declare v_order_id uuid; v_subtotal numeric(12,2):=0; v_shipping numeric(12,2):=0; v_free_delivery_threshold numeric(12,2):=999; v_item jsonb; v_product products%rowtype; v_qty integer; v_number text;
 begin
   if jsonb_array_length(p_items)=0 then raise exception 'Cart is empty'; end if;
   for v_item in select * from jsonb_array_elements(p_items) loop
@@ -109,9 +111,10 @@ begin
     if not found then raise exception 'Product unavailable'; end if;
     if v_qty<1 or v_product.stock<v_qty then raise exception 'Insufficient stock for %',v_product.name; end if;
     v_subtotal:=v_subtotal+(v_product.price*v_qty);
+    v_shipping:=v_shipping+(v_product.delivery_fee*v_qty);
   end loop;
-  select delivery_fee,free_delivery_threshold into v_delivery_fee,v_free_delivery_threshold from site_settings where singleton='main';
-  v_shipping:=case when v_free_delivery_threshold>0 and v_subtotal>=v_free_delivery_threshold then 0 else v_delivery_fee end;
+  select free_delivery_threshold into v_free_delivery_threshold from site_settings where singleton='main';
+  if v_free_delivery_threshold>0 and v_subtotal>=v_free_delivery_threshold then v_shipping:=0; end if;
   v_number:='WM-'||to_char(now(),'YYYYMMDD')||'-'||upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
   insert into orders(order_number,user_id,payment_method,subtotal,shipping,total,shipping_address,notes)
   values(v_number,p_user_id,p_payment_method,v_subtotal,v_shipping,v_subtotal+v_shipping,p_address,p_notes) returning id into v_order_id;

@@ -565,9 +565,9 @@ function Cart() {
   const { cart, setCart } = useContext(CartContext),
     { settings } = useContext(ThemeContext);
   const subtotal = cart.reduce((s, x) => s + Number(x.price) * x.quantity, 0);
-  const deliveryFee = Math.max(0, Number(settings?.deliveryFee ?? 79));
   const freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999));
-  const delivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold ? 0 : deliveryFee;
+  const productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)) * item.quantity, 0);
+  const delivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold ? 0 : productDelivery;
   return (
     <>
       <StoreHeader />
@@ -679,9 +679,9 @@ function Checkout() {
     [paymentMethod, setPaymentMethod] = useState("cod"),
     [paymentReference] = useState(() => `WM-PAY-${Date.now().toString(36).toUpperCase()}`);
   const checkoutSubtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0),
-    deliveryFee = Math.max(0, Number(settings?.deliveryFee ?? 79)),
     freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)),
-    checkoutDelivery = freeDeliveryThreshold > 0 && checkoutSubtotal >= freeDeliveryThreshold ? 0 : deliveryFee,
+    productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)) * item.quantity, 0),
+    checkoutDelivery = freeDeliveryThreshold > 0 && checkoutSubtotal >= freeDeliveryThreshold ? 0 : productDelivery,
     checkoutTotal = checkoutSubtotal + checkoutDelivery,
     upiQuery = settings?.merchantUpiId ? `pa=${encodeURIComponent(settings.merchantUpiId)}&pn=${encodeURIComponent(settings.platformName || "WebMatrix")}&am=${checkoutTotal.toFixed(2)}&cu=INR&tr=${encodeURIComponent(paymentReference)}&tn=${encodeURIComponent(paymentReference)}` : "",
     directUpiUrl = upiQuery ? `upi://pay?${upiQuery}` : "",
@@ -1159,7 +1159,8 @@ function Dashboard({ role }) {
   );
 }
 function ProductManager({ role }) {
-  const [products, setProducts] = useState([]),
+  const { settings } = useContext(ThemeContext),
+    [products, setProducts] = useState([]),
     [categories, setCategories] = useState([]),
     [message, setMessage] = useState(""),
     [newImagePreview, setNewImagePreview] = useState(""),
@@ -1203,6 +1204,7 @@ function ProductManager({ role }) {
       name: formData.get("name"),
       price: Number(formData.get("price")),
       stock: Number(formData.get("stock")),
+      delivery_fee: Number(formData.get("delivery_fee")),
       description: formData.get("description"),
       category_id: formData.get("category_id") || null,
       is_featured: formData.get("is_featured") === "on",
@@ -1251,6 +1253,7 @@ function ProductManager({ role }) {
     delete f.productImage;
     f.price = Number(f.price);
     f.stock = Number(f.stock);
+    f.delivery_fee = Number(f.delivery_fee);
     f.category_id = f.category_id || null;
     f.is_featured = formData.get("is_featured") === "on";
     f.is_active = true;
@@ -1300,6 +1303,11 @@ function ProductManager({ role }) {
               <input name="stock" type="number" min="0" placeholder="0" required />
             </label>
             <label className="wide-field">
+              <span>Delivery charge</span>
+              <small>Delivery amount charged for each unit of this product.</small>
+              <div className="money-input"><b>₹</b><input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={settings?.deliveryFee ?? 79} required /></div>
+            </label>
+            <label className="wide-field">
               <span>Category</span>
               <small>Helps customers filter the collection.</small>
               <select name="category_id">
@@ -1334,7 +1342,6 @@ function ProductManager({ role }) {
           <button className="button product-submit">Create product</button>
           {message && <p className="product-form-message" aria-live="polite">{message}</p>}
           </form>
-          <DeliverySettingsForm compact />
         </div>
         <section className="data-list">
           {products.map((p) => (
@@ -1364,6 +1371,7 @@ function ProductManager({ role }) {
                 <small>
                   {p.sku} · Stock {p.stock}
                 </small>
+                <small>Delivery {money(p.delivery_fee ?? settings?.deliveryFee ?? 79)}</small>
               </div>
               <strong>{money(p.price)}</strong>
               <div className="product-actions">
@@ -1426,6 +1434,10 @@ function ProductManager({ role }) {
                       defaultValue={p.stock}
                       required
                     />
+                  </label>
+                  <label>
+                    Delivery charge
+                    <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={p.delivery_fee ?? settings?.deliveryFee ?? 79} required />
                   </label>
                   <label>
                     Category
