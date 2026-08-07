@@ -18,6 +18,12 @@ const rolePath = {
   admin: "/admin",
   customer: "/customer",
 };
+const adminPermissionOptions = [
+  { key: "catalog.manage", label: "Products & catalog", description: "Add, edit, feature, hide, and delete products and categories." },
+  { key: "orders.manage", label: "Orders & payments", description: "View orders, update fulfilment, and verify payment status." },
+  { key: "customer.view", label: "Customer directory", description: "View registered customer accounts and contact details." },
+];
+const hasPermission = (user, permission) => user?.role === "super_admin" || user?.permissions?.includes(permission);
 function readStoredJson(key, fallback, storage = localStorage) {
   try {
     const raw = storage.getItem(key);
@@ -1035,8 +1041,10 @@ function ResetPassword() {
   );
 }
 function Shell({ role, children }) {
-  const { logout } = useContext(AuthContext),
+  const { user, logout } = useContext(AuthContext),
     { settings } = useContext(ThemeContext);
+  const canManageCatalog = hasPermission(user, "catalog.manage");
+  const canManageOrders = hasPermission(user, "orders.manage");
   return (
     <div className={`app-shell ${role === "customer" ? "customer-shell" : ""}`}>
       <aside>
@@ -1046,12 +1054,8 @@ function Shell({ role, children }) {
         <p className="role">{role.replace("_", " ")}</p>
         <nav>
           <a href={rolePath[role]}>Overview</a>
-          {role !== "customer" && (
-            <>
-              <a href={`/${role.replace("_", "-")}/products`}>Products</a>
-              <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>
-            </>
-          )}
+          {role !== "customer" && canManageCatalog && <a href={`/${role.replace("_", "-")}/products`}>Products</a>}
+          {role !== "customer" && canManageOrders && <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>}
           {role !== "customer" && (
             <>
               <a href={`/${role.replace("_", "-")}/settings`}>Store settings</a>
@@ -1080,12 +1084,8 @@ function Shell({ role, children }) {
           <summary aria-label="Open dashboard navigation">☰</summary>
           <nav>
             <a href={rolePath[role]}>Overview</a>
-            {role !== "customer" && (
-              <>
-                <a href={`/${role.replace("_", "-")}/products`}>Products</a>
-                <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>
-              </>
-            )}
+            {role !== "customer" && canManageCatalog && <a href={`/${role.replace("_", "-")}/products`}>Products</a>}
+            {role !== "customer" && canManageOrders && <a href={`/${role.replace("_", "-")}/orders`}>Orders</a>}
             {role !== "customer" && (
               <>
                 <a href={`/${role.replace("_", "-")}/settings`}>Store settings</a>
@@ -2257,7 +2257,17 @@ function Settings() {
   );
 }
 function Admins() {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(""),
+    [admins, setAdmins] = useState([]),
+    [loading, setLoading] = useState(true),
+    [savingId, setSavingId] = useState("");
+  const loadAdmins = async () => {
+    setLoading(true);
+    try { setAdmins(await request("/admins")); }
+    catch (err) { setMessage(err.message); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { loadAdmins(); }, []);
   const submit = async (e) => {
     e.preventDefault();
     const formElement = e.currentTarget;
@@ -2269,14 +2279,35 @@ function Admins() {
       const admin = await request("/admins", { method: "POST", body: JSON.stringify(form) });
       setMessage(admin.accountUpdated ? "Existing user promoted to Admin successfully" : "Admin created successfully");
       formElement.reset();
+      await loadAdmins();
     } catch (err) {
       setMessage(err.message);
     }
   };
+  const togglePermission = (adminId, permission) => {
+    setAdmins((current) => current.map((admin) => admin.id !== adminId ? admin : {
+      ...admin,
+      permissions: admin.permissions?.includes(permission)
+        ? admin.permissions.filter((item) => item !== permission)
+        : [...(admin.permissions || []), permission],
+    }));
+    setMessage("");
+  };
+  const savePermissions = async (admin) => {
+    setSavingId(admin.id); setMessage("");
+    try {
+      const updated = await request(`/admins/${admin.id}/permissions`, { method: "PATCH", body: JSON.stringify({ permissions: admin.permissions || [] }) });
+      setAdmins((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setMessage(`${updated.name}'s permissions were updated successfully`);
+    } catch (err) { setMessage(err.message); }
+    finally { setSavingId(""); }
+  };
   return (
     <Shell role="super_admin">
-      <h1>Create Admin</h1>
-      <form className="panel settings" onSubmit={submit}>
+      <div className="admin-access-heading"><div><small>TEAM ACCESS</small><h1>Admin permissions</h1><p>Create administrators and control exactly which dashboard areas they can use.</p></div><span>{admins.length} Admin{admins.length === 1 ? "" : "s"}</span></div>
+      <div className="admin-access-layout">
+      <form className="panel settings admin-create-form" onSubmit={submit}>
+        <h2>Create Admin</h2>
         {["name", "email", "password"].map((k) => (
           <label key={k}>
             {k}
@@ -2295,10 +2326,25 @@ function Admins() {
             />
           </label>
         ))}
-        <p>Permissions: catalog, orders, customers</p>
+        <p className="form-hint">New Admins receive all three permissions. You can change them after creation.</p>
         <button className="button">Create Admin</button>
-        {message && <p>{message}</p>}
       </form>
+      <section className="admin-permission-list" aria-label="Administrator permission editor">
+        {loading ? <div className="panel">Loading administrators…</div> : admins.length ? admins.map((admin) => (
+          <article className="panel admin-permission-card" key={admin.id}>
+            <header><div className="admin-avatar">{admin.name?.trim()?.charAt(0)?.toUpperCase() || "A"}</div><div><h2>{admin.name}</h2><p>{admin.email}</p></div><span className={`account-status ${admin.status}`}>{admin.status}</span></header>
+            <div className="permission-options">
+              {adminPermissionOptions.map((option) => <label className="permission-option" key={option.key}>
+                <input type="checkbox" checked={admin.permissions?.includes(option.key) || false} onChange={() => togglePermission(admin.id, option.key)} />
+                <span><strong>{option.label}</strong><small>{option.description}</small></span>
+              </label>)}
+            </div>
+            <footer><span>{admin.permissions?.length || 0} of {adminPermissionOptions.length} enabled</span><button className="button" type="button" disabled={savingId === admin.id} onClick={() => savePermissions(admin)}>{savingId === admin.id ? "Saving…" : "Save permissions"}</button></footer>
+          </article>
+        )) : <div className="panel">No Admin accounts have been created yet.</div>}
+      </section>
+      </div>
+      {message && <p className="admin-access-message" role="status">{message}</p>}
     </Shell>
   );
 }
@@ -2367,9 +2413,12 @@ function Router() {
     history.replaceState({}, "", rolePath[user.role]);
     return <Dashboard role={user.role} />;
   }
-  if (path.endsWith("/products")) return <ProductManager role={role} />;
+  if (path.endsWith("/products")) {
+    if (!hasPermission(user, "catalog.manage")) { history.replaceState({}, "", rolePath[user.role]); return <Dashboard role={user.role} />; }
+    return <ProductManager role={role} />;
+  }
   if (path.endsWith("/orders"))
-    return role === "customer" ? <MyOrders /> : <OrderManager role={role} />;
+    return role === "customer" ? <MyOrders /> : hasPermission(user, "orders.manage") ? <OrderManager role={role} /> : <Dashboard role={user.role} />;
   if (path === "/super-admin/settings") return <Settings />;
   if (path === "/admin/settings") return <DeliverySettings role="admin" />;
   if (path === "/super-admin/admins") return <Admins />;

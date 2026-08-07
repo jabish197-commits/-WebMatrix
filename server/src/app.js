@@ -54,9 +54,9 @@ const isSafeOfferLink = (value) => /^(#[A-Za-z0-9_-]+|\/(?!\/)[^\s]*|https:\/\/[
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", name: "WebMatrix API" }));
 
-app.post("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),imageUpload.single("image"),async(req,res,next)=>{try{if(!req.file)return res.status(400).json({message:"Select an image to upload"});const folder=String(req.body.folder||"general").replace(/[^a-z0-9-]/gi,"").slice(0,30)||"general",extension=(req.file.originalname.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");const path=`${folder}/${Date.now()}-${randomUUID()}.${extension}`;const{error}=await supabase.storage.from("webmatrix-assets").upload(path,req.file.buffer,{contentType:req.file.mimetype,cacheControl:"31536000",upsert:false});if(error)throw error;const{data}=supabase.storage.from("webmatrix-assets").getPublicUrl(path);res.status(201).json({url:data.publicUrl,path});}catch(error){next(error);}});
+app.post("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),requirePermission("catalog.manage"),imageUpload.single("image"),async(req,res,next)=>{try{if(!req.file)return res.status(400).json({message:"Select an image to upload"});const folder=String(req.body.folder||"general").replace(/[^a-z0-9-]/gi,"").slice(0,30)||"general",extension=(req.file.originalname.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");const path=`${folder}/${Date.now()}-${randomUUID()}.${extension}`;const{error}=await supabase.storage.from("webmatrix-assets").upload(path,req.file.buffer,{contentType:req.file.mimetype,cacheControl:"31536000",upsert:false});if(error)throw error;const{data}=supabase.storage.from("webmatrix-assets").getPublicUrl(path);res.status(201).json({url:data.publicUrl,path});}catch(error){next(error);}});
 
-app.delete("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),async(req,res,next)=>{try{const rawUrl=String(req.body.url||""),marker="/storage/v1/object/public/webmatrix-assets/",markerIndex=rawUrl.indexOf(marker);if(markerIndex<0)return res.status(400).json({message:"This is not a WebMatrix uploaded image"});const path=decodeURIComponent(rawUrl.slice(markerIndex+marker.length).split("?")[0]);if(!path||path.includes(".."))return res.status(400).json({message:"Invalid image path"});const{error}=await supabase.storage.from("webmatrix-assets").remove([path]);if(error)throw error;res.json({message:"Image deleted",path});}catch(error){next(error);}});
+app.delete("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),requirePermission("catalog.manage"),async(req,res,next)=>{try{const rawUrl=String(req.body.url||""),marker="/storage/v1/object/public/webmatrix-assets/",markerIndex=rawUrl.indexOf(marker);if(markerIndex<0)return res.status(400).json({message:"This is not a WebMatrix uploaded image"});const path=decodeURIComponent(rawUrl.slice(markerIndex+marker.length).split("?")[0]);if(!path||path.includes(".."))return res.status(400).json({message:"Invalid image path"});const{error}=await supabase.storage.from("webmatrix-assets").remove([path]);if(error)throw error;res.json({message:"Image deleted",path});}catch(error){next(error);}});
 
 app.post("/api/auth/register", async (req, res, next) => {
   try {
@@ -236,15 +236,18 @@ app.get("/api/users", authenticate, allowRoles("super_admin", "admin"), requireP
   catch (error) { next(error); }
 });
 
+const editableAdminPermissions = ["catalog.manage", "orders.manage", "customer.view"];
+
 app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res, next) => {
   try {
-    const { name, email, password, permissions = [] } = req.body;
+    const { name, email, password, permissions: requestedPermissions = [] } = req.body;
     if (!name || !password || password.length < 8) {
       return res.status(400).json({ message: "Name, email, and a password of at least 8 characters are required" });
     }
     const emailResult = validateEmail(email);
     if (!emailResult.valid) return res.status(400).json({ message: emailResult.message });
     const normalizedEmail = emailResult.email;
+    const permissions = editableAdminPermissions.filter((permission) => requestedPermissions.includes(permission));
     const { data: existingAdmin, error: lookupError } = await supabase
       .from("users")
       .select("id,role")
@@ -272,6 +275,45 @@ app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res
     }
     const {data:admin,error}=await supabase.from("users").insert({name,email:normalizedEmail,password_hash:await bcrypt.hash(password,12),role:"admin",permissions}).select("id,name,email,role,permissions,status").single(); if(error)throw error;
     res.status(201).json({ ...admin, accountUpdated: false });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/admins", authenticate, allowRoles("super_admin"), async (_req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id,name,email,permissions,status,created_at")
+      .eq("role", "admin")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) { next(error); }
+});
+
+app.patch("/api/admins/:id/permissions", authenticate, allowRoles("super_admin"), async (req, res, next) => {
+  try {
+    const requested = Array.isArray(req.body.permissions) ? req.body.permissions : [];
+    const invalid = requested.filter((permission) => !editableAdminPermissions.includes(permission));
+    if (invalid.length) return res.status(400).json({ message: `Unknown permission: ${invalid[0]}` });
+    const permissions = editableAdminPermissions.filter((permission) => requested.includes(permission));
+    const { data, error } = await supabase
+      .from("users")
+      .update({ permissions, updated_at: new Date().toISOString() })
+      .eq("id", req.params.id)
+      .eq("role", "admin")
+      .select("id,name,email,permissions,status,created_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ message: "Admin account not found" });
+    await supabase.from("audit_logs").insert({
+      actor_id: req.user.id,
+      action: "admin.permissions.updated",
+      resource: "users",
+      resource_id: data.id,
+      metadata: { permissions },
+      ip: req.ip,
+    });
+    res.json(data);
   } catch (error) { next(error); }
 });
 
@@ -479,11 +521,11 @@ app.post("/api/payments/razorpay/verify", authenticate, allowRoles("customer","a
   } catch (error) { next(error); }
 });
 
-app.get("/api/manage/products", authenticate, allowRoles("super_admin","admin"), async (_req,res,next)=>{
+app.get("/api/manage/products", authenticate, allowRoles("super_admin","admin"), requirePermission("catalog.manage"), async (_req,res,next)=>{
   try{const{data,error}=await supabase.from("products").select("*,categories(id,name)").order("created_at",{ascending:false});if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
-app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin"), requirePermission("catalog.manage"), async (req,res,next)=>{
   try {
     const fields=["name","description","price","stock","delivery_fee","image_url","category_id","is_featured","is_active"];
     const product=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));
@@ -496,15 +538,15 @@ app.post("/api/manage/products", authenticate, allowRoles("super_admin","admin")
   }catch(error){next(error);}
 });
 
-app.patch("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.patch("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), requirePermission("catalog.manage"), async (req,res,next)=>{
   try{const fields=["name","description","price","stock","delivery_fee","image_url","category_id","is_featured","is_active"];const update=Object.fromEntries(fields.filter(k=>req.body[k]!==undefined).map(k=>[k,req.body[k]]));if(update.category_id!==undefined)update.category_id=update.category_id||null;if(update.delivery_fee!==undefined&&(!Number.isFinite(Number(update.delivery_fee))||Number(update.delivery_fee)<0))return res.status(400).json({message:"Delivery charge must be zero or more"});const{data,error}=await supabase.from("products").update({...update,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
-app.delete("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.delete("/api/manage/products/:id", authenticate, allowRoles("super_admin","admin"), requirePermission("catalog.manage"), async (req,res,next)=>{
   try{const{data:product,error}=await supabase.from("products").delete().eq("id",req.params.id).select("id,name,image_url").single();if(error)throw error;if(product.image_url){const marker="/storage/v1/object/public/webmatrix-assets/",index=product.image_url.indexOf(marker);if(index>=0){const path=decodeURIComponent(product.image_url.slice(index+marker.length).split("?")[0]);if(path&&!path.includes(".."))await supabase.storage.from("webmatrix-assets").remove([path]);}}res.json({message:"Product deleted",product});}catch(error){next(error);}
 });
 
-app.post("/api/manage/categories", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.post("/api/manage/categories", authenticate, allowRoles("super_admin","admin"), requirePermission("catalog.manage"), async (req,res,next)=>{
   try{const{name,slug,description="",image_url=""}=req.body;if(!name||!slug)return res.status(400).json({message:"Name and slug are required"});const{data,error}=await supabase.from("categories").insert({name,slug,description,image_url}).select().single();if(error)throw error;res.status(201).json(data);}catch(error){next(error);}
 });
 
@@ -528,11 +570,11 @@ app.get("/api/orders/my", authenticate, allowRoles("customer"), async (req,res,n
   try{const{data,error}=await supabase.from("orders").select("*,order_items(*)").eq("user_id",req.user.id).order("created_at",{ascending:false});if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
-app.get("/api/manage/orders", authenticate, allowRoles("super_admin","admin"), async (_req,res,next)=>{
+app.get("/api/manage/orders", authenticate, allowRoles("super_admin","admin"), requirePermission("orders.manage"), async (_req,res,next)=>{
   try{const{data,error}=await supabase.from("orders").select("*,users(name,email),order_items(*)").order("created_at",{ascending:false});if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
-app.post("/api/manage/orders/:id/payment/refresh", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.post("/api/manage/orders/:id/payment/refresh", authenticate, allowRoles("super_admin","admin"), requirePermission("orders.manage"), async (req,res,next)=>{
   try {
     const credentials=razorpayCredentials();
     const{data:order,error:orderError}=await supabase.from("orders").select("id,gateway_payment_id").eq("id",req.params.id).single();
@@ -549,11 +591,11 @@ app.post("/api/manage/orders/:id/payment/refresh", authenticate, allowRoles("sup
   }catch(error){next(error);}
 });
 
-app.patch("/api/manage/orders/:id/payment/status", authenticate, allowRoles("super_admin","admin"), async(req,res,next)=>{
+app.patch("/api/manage/orders/:id/payment/status", authenticate, allowRoles("super_admin","admin"), requirePermission("orders.manage"), async(req,res,next)=>{
   try{const allowed=["pending","paid","failed","refunded"],status=req.body.status;if(!allowed.includes(status))return res.status(400).json({message:"Invalid payment status"});const{data,error}=await supabase.from("orders").update({payment_status:status,gateway_status:status==="paid"?"manually_verified":status,updated_at:new Date().toISOString()}).eq("id",req.params.id).eq("gateway_provider","Direct UPI").select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
-app.patch("/api/manage/orders/:id/status", authenticate, allowRoles("super_admin","admin"), async (req,res,next)=>{
+app.patch("/api/manage/orders/:id/status", authenticate, allowRoles("super_admin","admin"), requirePermission("orders.manage"), async (req,res,next)=>{
   try{const allowed=["placed","confirmed","packed","shipped","delivered","cancelled"];if(!allowed.includes(req.body.status))return res.status(400).json({message:"Invalid order status"});const{data,error}=await supabase.from("orders").update({status:req.body.status,updated_at:new Date().toISOString()}).eq("id",req.params.id).select().single();if(error)throw error;res.json(data);}catch(error){next(error);}
 });
 
