@@ -8,6 +8,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import { supabase } from "./config/supabase.js";
 import { allowRoles, authenticate, requirePermission, signToken } from "./auth.js";
 import { sendEmail } from "./services/emailService.js";
+import { validateEmail } from "./validators/emailValidator.js";
 
 const app = express();
 const imageUpload=multer({storage:multer.memoryStorage(),limits:{fileSize:5*1024*1024},fileFilter(_req,file,callback){const allowed=["image/jpeg","image/png","image/webp","image/gif","image/svg+xml"],valid=allowed.includes(file.mimetype);callback(valid?null:new Error("Only JPG, PNG, WebP, GIF, and SVG images are allowed"),valid);}});
@@ -60,10 +61,12 @@ app.delete("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),a
 app.post("/api/auth/register", async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
-    if (!name || !email || !password || password.length < 8) {
+    if (!name || !password || password.length < 8) {
       return res.status(400).json({ message: "Name, email, and a password of at least 8 characters are required" });
     }
-    const normalizedEmail=email.toLowerCase();
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) return res.status(400).json({ message: emailResult.message });
+    const normalizedEmail=emailResult.email;
     const { data:existing }=await supabase.from("users").select("id").eq("email",normalizedEmail).maybeSingle();
     if (existing) return res.status(409).json({ message: "Email is already registered" });
     const { error }=await supabase.from("users").insert({ name, email:normalizedEmail, password_hash:await bcrypt.hash(password,12), role:"customer" });
@@ -74,7 +77,9 @@ app.post("/api/auth/register", async (req, res, next) => {
 
 app.post("/api/auth/login", async (req, res, next) => {
   try {
-    const { data:user,error }=await supabase.from("users").select("*").eq("email",req.body.email?.toLowerCase()).maybeSingle();
+    const emailResult = validateEmail(req.body.email);
+    if (!emailResult.valid) return res.status(400).json({ message: emailResult.message });
+    const { data:user,error }=await supabase.from("users").select("*").eq("email",emailResult.email).maybeSingle();
     if(error) throw error;
     if (!user || !(await bcrypt.compare(req.body.password || "", user.password_hash))) return res.status(401).json({ message: "Invalid email or password" });
     if (user.status !== "active") return res.status(403).json({ message: "Account is suspended" });
@@ -84,8 +89,9 @@ app.post("/api/auth/login", async (req, res, next) => {
 
 app.post("/api/auth/forgot-password", async (req, res, next) => {
   try {
-    const email = String(req.body.email || "").trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: "Enter a valid email address" });
+    const emailResult = validateEmail(req.body.email);
+    if (!emailResult.valid) return res.status(400).json({ message: emailResult.message });
+    const email = emailResult.email;
     const genericMessage = "If an active WebMatrix account uses that email, a reset link has been sent.";
     const { data: user, error } = await supabase.from("users").select("id,name,email,status").eq("email", email).maybeSingle();
     if (error) throw error;
@@ -233,10 +239,12 @@ app.get("/api/users", authenticate, allowRoles("super_admin", "admin"), requireP
 app.post("/api/admins", authenticate, allowRoles("super_admin"), async (req, res, next) => {
   try {
     const { name, email, password, permissions = [] } = req.body;
-    if (!name || !email || !password || password.length < 8) {
+    if (!name || !password || password.length < 8) {
       return res.status(400).json({ message: "Name, email, and a password of at least 8 characters are required" });
     }
-    const normalizedEmail = email.toLowerCase().trim();
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) return res.status(400).json({ message: emailResult.message });
+    const normalizedEmail = emailResult.email;
     const { data: existingAdmin, error: lookupError } = await supabase
       .from("users")
       .select("id,role")

@@ -46,6 +46,26 @@ const money = (value) =>
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(Number(value));
+const emailPattern = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+const commonEmailTypos = {
+  "gamil.com": "gmail.com", "gmial.com": "gmail.com", "gmail.co": "gmail.com",
+  "gmail.con": "gmail.com", "yaho.com": "yahoo.com", "yahoo.co": "yahoo.com",
+  "outlok.com": "outlook.com", "hotmai.com": "hotmail.com",
+};
+function emailValidationMessage(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || email.length > 254 || email.includes("..") || !emailPattern.test(email)) {
+    return "Enter a valid email address, for example name@gmail.com";
+  }
+  const [local, domain] = email.split("@");
+  return commonEmailTypos[domain] ? `Did you mean ${local}@${commonEmailTypos[domain]}?` : "";
+}
+function validateEmailInput(input) {
+  const message = emailValidationMessage(input.value);
+  input.setCustomValidity(message);
+  if (message) input.reportValidity();
+  return !message;
+}
 async function readResponse(response, fallbackMessage) {
   const text = await response.text();
   let data = {};
@@ -872,7 +892,10 @@ function AuthPage({ register = false, customerOnly = false }) {
     [ok, setOk] = useState("");
   const submit = async (e) => {
     e.preventDefault();
+    const emailInput = e.currentTarget.elements.email;
+    if (!validateEmailInput(emailInput)) return;
     const form = Object.fromEntries(new FormData(e.currentTarget));
+    form.email = form.email.trim().toLowerCase();
     setError("");
     try {
       if (register) {
@@ -905,7 +928,7 @@ function AuthPage({ register = false, customerOnly = false }) {
         )}
         <label>
           Email
-          <input name="email" type="email" required />
+          <input name="email" type="email" required maxLength="254" autoComplete="email" inputMode="email" onInput={(event) => event.currentTarget.setCustomValidity("")} onBlur={(event) => validateEmailInput(event.currentTarget)} />
         </label>
         <label>
           Password
@@ -945,7 +968,9 @@ function ForgotPassword() {
     [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
-    const email = new FormData(e.currentTarget).get("email");
+    const emailInput = e.currentTarget.elements.email;
+    if (!validateEmailInput(emailInput)) return;
+    const email = emailInput.value.trim().toLowerCase();
     setBusy(true);
     setError("");
     try {
@@ -963,7 +988,7 @@ function ForgotPassword() {
         <a className="brand" href="/">Web<span>Matrix</span></a>
         <h2>Reset password</h2>
         <p>Enter your registered email. We will send a secure link that expires in 30 minutes.</p>
-        <label>Email<input name="email" type="email" required autoComplete="email" /></label>
+        <label>Email<input name="email" type="email" required maxLength="254" autoComplete="email" inputMode="email" onInput={(event) => event.currentTarget.setCustomValidity("")} onBlur={(event) => validateEmailInput(event.currentTarget)} /></label>
         {error && <p className="error">{error}</p>}
         {message && <p className="success">{message}</p>}
         <button className="button" disabled={busy}>{busy ? "Sending…" : "Send reset link"}</button>
@@ -2236,7 +2261,9 @@ function Admins() {
   const submit = async (e) => {
     e.preventDefault();
     const formElement = e.currentTarget;
+    if (!validateEmailInput(formElement.elements.email)) return;
     const form = Object.fromEntries(new FormData(formElement));
+    form.email = form.email.trim().toLowerCase();
     form.permissions = ["customer.view", "catalog.manage", "orders.manage"];
     try {
       const admin = await request("/admins", { method: "POST", body: JSON.stringify(form) });
@@ -2259,6 +2286,11 @@ function Admins() {
                 k === "password" ? "password" : k === "email" ? "email" : "text"
               }
               minLength={k === "password" ? 8 : undefined}
+              maxLength={k === "email" ? 254 : undefined}
+              autoComplete={k === "email" ? "email" : k === "password" ? "new-password" : "name"}
+              inputMode={k === "email" ? "email" : undefined}
+              onInput={k === "email" ? (event) => event.currentTarget.setCustomValidity("") : undefined}
+              onBlur={k === "email" ? (event) => validateEmailInput(event.currentTarget) : undefined}
               required
             />
           </label>
