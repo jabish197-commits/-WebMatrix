@@ -204,6 +204,8 @@ function Providers({ children }) {
               "--hero-start": data.heroStartColor || "#f4efe4",
               "--hero-end": data.heroEndColor || "#e6eee3",
               "--circle": data.circleColor || "#e7a93f",
+              "--offer-bg": data.offerBackgroundColor || "#e7a93f",
+              "--offer-text": data.offerTextColor || "#152018",
               "--shop-button": data.buttonColor || "#18251b",
               "--shop-button-text": data.buttonTextColor || "#fff",
               "--collection-bg": data.collectionBackgroundColor || "#f7f5ef",
@@ -362,7 +364,7 @@ function Store() {
         (!category || p.categories?.slug === category),
     )
     .slice(0, Number(settings?.collectionProductLimit || 12));
-  const offerText = `LIMITED-TIME OFFER  •  Free delivery on orders above ${money(Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)))}  •  Shop new arrivals today`;
+  const offerText = settings?.offerText || "LIMITED-TIME OFFER • Shop new arrivals today";
   return (
     <>
       <StoreHeader />
@@ -1912,6 +1914,39 @@ function Settings() {
             />
             <small>Shown to customers in the UPI payment section.</small>
           </label>
+        </section>
+        <section className="theme-section offer-settings-section">
+          <h2>Offer animation</h2>
+          <label>
+            Animated offer text
+            <textarea
+              name="offerText"
+              rows="3"
+              maxLength="240"
+              defaultValue={settings.offerText || "LIMITED-TIME OFFER • Shop new arrivals today"}
+              required
+            />
+            <small>This message moves across the top of the shopping storefront.</small>
+          </label>
+          <div className="offer-color-controls">
+            <label>
+              Offer background color
+              <input name="offerBackgroundColor" type="color" defaultValue={settings.offerBackgroundColor || "#e7a93f"} />
+            </label>
+            <label>
+              Offer text color
+              <input name="offerTextColor" type="color" defaultValue={settings.offerTextColor || "#152018"} />
+            </label>
+          </div>
+          <div
+            className="offer-settings-preview"
+            style={{
+              background: settings.offerBackgroundColor || "#e7a93f",
+              color: settings.offerTextColor || "#152018",
+            }}
+          >
+            {settings.offerText || "LIMITED-TIME OFFER • Shop new arrivals today"}
+          </div>
         </section>
         <section className="theme-section">
           <h2>Colors</h2>
