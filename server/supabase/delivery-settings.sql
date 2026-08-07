@@ -16,7 +16,7 @@ begin
     if not found then raise exception 'Product unavailable'; end if;
     if v_qty<1 or v_product.stock<v_qty then raise exception 'Insufficient stock for %',v_product.name; end if;
     v_subtotal:=v_subtotal+(v_product.price*v_qty);
-    v_shipping:=v_shipping+(v_product.delivery_fee*v_qty);
+    v_shipping:=v_shipping+v_product.delivery_fee;
   end loop;
   select free_delivery_threshold into v_free_delivery_threshold from site_settings where singleton='main';
   if v_free_delivery_threshold>0 and v_subtotal>=v_free_delivery_threshold then v_shipping:=0; end if;

@@ -359,7 +359,7 @@ async function cartQuote(items) {
     if (!product?.is_active) throw Object.assign(new Error("A product is unavailable"), { status: 409 });
     if (product.stock < item.quantity) throw Object.assign(new Error(`Insufficient stock for ${product.name}`), { status: 409 });
     subtotal += Number(product.price) * item.quantity;
-    productDelivery += Math.max(0,Number(product.delivery_fee??0)) * item.quantity;
+    productDelivery += Math.max(0,Number(product.delivery_fee??0));
   }
   const {data:deliverySettings,error:settingsError}=await supabase.from("site_settings").select("delivery_fee,free_delivery_threshold").eq("singleton","main").single();
   if(settingsError)throw settingsError;

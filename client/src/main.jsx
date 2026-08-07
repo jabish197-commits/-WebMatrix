@@ -566,7 +566,7 @@ function Cart() {
     { settings } = useContext(ThemeContext);
   const subtotal = cart.reduce((s, x) => s + Number(x.price) * x.quantity, 0);
   const freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999));
-  const productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)) * item.quantity, 0);
+  const productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)), 0);
   const delivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold ? 0 : productDelivery;
   return (
     <>
@@ -680,7 +680,7 @@ function Checkout() {
     [paymentReference] = useState(() => `WM-PAY-${Date.now().toString(36).toUpperCase()}`);
   const checkoutSubtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0),
     freeDeliveryThreshold = Math.max(0, Number(settings?.freeDeliveryThreshold ?? 999)),
-    productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)) * item.quantity, 0),
+    productDelivery = cart.reduce((sum, item) => sum + Math.max(0, Number(item.delivery_fee ?? settings?.deliveryFee ?? 79)), 0),
     checkoutDelivery = freeDeliveryThreshold > 0 && checkoutSubtotal >= freeDeliveryThreshold ? 0 : productDelivery,
     checkoutTotal = checkoutSubtotal + checkoutDelivery,
     upiQuery = settings?.merchantUpiId ? `pa=${encodeURIComponent(settings.merchantUpiId)}&pn=${encodeURIComponent(settings.platformName || "WebMatrix")}&am=${checkoutTotal.toFixed(2)}&cu=INR&tr=${encodeURIComponent(paymentReference)}&tn=${encodeURIComponent(paymentReference)}` : "",
@@ -1304,7 +1304,7 @@ function ProductManager({ role }) {
             </label>
             <label className="wide-field">
               <span>Delivery charge</span>
-              <small>Delivery amount charged for each unit of this product.</small>
+              <small>Charged once for this product, regardless of quantity.</small>
               <div className="money-input"><b>₹</b><input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={settings?.deliveryFee ?? 79} required /></div>
             </label>
             <label className="wide-field">
