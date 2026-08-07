@@ -1276,7 +1276,8 @@ function ProductManager({ role }) {
       <span className="eyebrow">CATALOG</span>
       <h1>Products</h1>
       <div className="manager-grid">
-        <form className="panel settings product-create-card" onSubmit={submit}>
+        <div className="manager-side-stack">
+          <form className="panel settings product-create-card" onSubmit={submit}>
           <div className="product-form-header">
             <span>NEW ITEM</span>
             <h2>Add product</h2>
@@ -1332,7 +1333,9 @@ function ProductManager({ role }) {
           </div>
           <button className="button product-submit">Create product</button>
           {message && <p className="product-form-message" aria-live="polite">{message}</p>}
-        </form>
+          </form>
+          <DeliverySettingsForm compact />
+        </div>
         <section className="data-list">
           {products.map((p) => (
             <article key={p.id}>
@@ -1596,6 +1599,30 @@ function MyOrders() {
       </section>
     </Shell>
   );
+}
+function DeliverySettingsForm({ compact = false }) {
+  const { settings, setSettings, settingsError } = useContext(ThemeContext),
+    [deliveryMessage, setDeliveryMessage] = useState("");
+  if (!settings) return <section className="panel delivery-settings-card"><p>{settingsError || "Loading delivery settings..."}</p></section>;
+  const saveDelivery = async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    values.deliveryFee = Number(values.deliveryFee);
+    values.freeDeliveryThreshold = Number(values.freeDeliveryThreshold);
+    try {
+      const updated = await request("/settings", { method: "PATCH", body: JSON.stringify(values) });
+      setSettings(updated);
+      setDeliveryMessage("Delivery settings saved");
+    } catch (error) { setDeliveryMessage(error.message); }
+  };
+  return <form className={`panel settings delivery-settings-card${compact ? " compact" : ""}`} onSubmit={saveDelivery}>
+    <div className="delivery-settings-heading"><span>CHECKOUT</span><h2>Delivery charges</h2><p>Applied to every customer order.</p></div>
+    <label>Delivery charge (INR)<input name="deliveryFee" type="number" min="0" step="0.01" defaultValue={settings.deliveryFee ?? 79} required /></label>
+    <label>Free delivery above (INR)<input name="freeDeliveryThreshold" type="number" min="0" step="0.01" defaultValue={settings.freeDeliveryThreshold ?? 999} required /></label>
+    <small>Set the threshold to 0 to disable free delivery. Set the delivery charge to 0 for free delivery on every order.</small>
+    <button className="button">Save delivery settings</button>
+    {deliveryMessage && <p className="product-form-message">{deliveryMessage}</p>}
+  </form>;
 }
 function DeliverySettings({ role = "admin" }) {
   const { settings, setSettings, settingsError } = useContext(ThemeContext),
