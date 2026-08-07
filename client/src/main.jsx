@@ -1244,6 +1244,7 @@ function ProductManager({ role }) {
     delete f.productImage;
     f.price = Number(f.price);
     f.stock = Number(f.stock);
+    f.category_id = f.category_id || null;
     f.is_featured = formData.get("is_featured") === "on";
     f.is_active = true;
     try {
