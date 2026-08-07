@@ -677,6 +677,7 @@ function Checkout() {
     { settings } = useContext(ThemeContext),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
+    [addressReady, setAddressReady] = useState(false),
     [paymentMethod, setPaymentMethod] = useState("cod"),
     [paymentReference] = useState(() => `WM-PAY-${Date.now().toString(36).toUpperCase()}`);
   useEffect(() => { refreshCart().catch(() => {}); }, []);
@@ -699,6 +700,11 @@ function Checkout() {
   }
   const submit = async (e) => {
     e.preventDefault();
+    if (!e.currentTarget.checkValidity()) {
+      e.currentTarget.reportValidity();
+      setMessage("Complete all required delivery details before payment");
+      return;
+    }
     setBusy(true);
     setMessage("");
     const f = Object.fromEntries(new FormData(e.currentTarget));
@@ -744,7 +750,11 @@ function Checkout() {
             <h1>Delivery details</h1>
           </div>
         </div>
-        <form className="checkout-form" onSubmit={submit}>
+        <form className="checkout-form" onSubmit={submit} onChange={(event) => {
+          const ready = event.currentTarget.checkValidity();
+          setAddressReady(ready);
+          if (ready && message === "Complete all required delivery details before payment") setMessage("");
+        }}>
           <div className="form-grid">
             <label>
               Full name
@@ -779,15 +789,16 @@ function Checkout() {
           </div>
           <div className="payment-box">
             <h2>Payment</h2>
-            <label className={paymentMethod === "cod" ? "payment-option selected" : "payment-option"}>
-              <input type="radio" name="paymentChoice" value="cod" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} />
+            <label className={`${paymentMethod === "cod" ? "payment-option selected" : "payment-option"}${!addressReady ? " locked" : ""}`}>
+              <input type="radio" name="paymentChoice" value="cod" checked={paymentMethod === "cod"} disabled={!addressReady} onChange={() => setPaymentMethod("cod")} />
               <span><b>Cash on delivery</b><small>Pay when your order arrives</small></span>
             </label>
-            <label className={paymentMethod === "upi" ? "payment-option selected" : "payment-option"}>
-              <input type="radio" name="paymentChoice" value="upi" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} />
+            <label className={`${paymentMethod === "upi" ? "payment-option selected" : "payment-option"}${!addressReady ? " locked" : ""}`}>
+              <input type="radio" name="paymentChoice" value="upi" checked={paymentMethod === "upi"} disabled={!addressReady} onChange={() => setPaymentMethod("upi")} />
               <span><b>UPI payment</b><small>Google Pay, PhonePe, Paytm or any UPI app</small></span>
             </label>
-            {paymentMethod === "upi" && <div className="upi-payment">
+            {!addressReady && <p className="payment-lock-message">Complete the required delivery details to unlock payment.</p>}
+            {addressReady && paymentMethod === "upi" && <div className="upi-payment">
               {settings?.razorpayConfigured ? <p>Razorpay securely opens next. Choose a UPI app on mobile or scan its UPI QR code on desktop.</p> : settings?.merchantUpiId ? <>
                 <div className="direct-upi-heading"><small>PAY USING YOUR PHONE</small><strong>Pay {money(checkoutTotal)}</strong><span>Amount and reference {paymentReference} are filled automatically.</span></div>
                 <a className="direct-upi-button" href={directUpiUrl}>Pay with any UPI app</a>
@@ -795,7 +806,7 @@ function Checkout() {
                 <a className="upi-app-button" href={phonePeUrl}>PhonePe</a>
               </> : <p className="error">Super Admin must add a Merchant UPI ID in Store settings.</p>}
             </div>}
-            <button className="button" disabled={busy || !cart.length}>
+            <button className="button" disabled={busy || !cart.length || !addressReady}>
               {busy ? "Placing order…" : "Place order"}
             </button>
             {message && <p className="error">{message}</p>}

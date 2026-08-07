@@ -87,6 +87,22 @@ body{background-color:var(--store-bg,#f7f5ef);background-image:var(--store-backg
   background:color-mix(in srgb,var(--circle,#e7a93f) 15%,var(--shop-button,#18251b))
 }
 .payment-option input{accent-color:var(--circle,#e7a93f)}
+.payment-box .payment-option.locked{
+  opacity:.5;
+  cursor:not-allowed;
+  border-color:color-mix(in srgb,var(--shop-button-text,#fff) 22%,transparent);
+  background:color-mix(in srgb,var(--shop-button-text,#fff) 7%,transparent)
+}
+.payment-lock-message{
+  margin:14px 0;
+  padding:12px 14px;
+  border-radius:9px;
+  background:#fff3cd;
+  color:#624b00;
+  opacity:1!important;
+  line-height:1.45
+}
+.payment-box .button:disabled{cursor:not-allowed;opacity:.5}
 .upi-payment{
   background:var(--card-bg,#fff);
   color:var(--store-text,#18251b);
