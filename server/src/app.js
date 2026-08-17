@@ -7,7 +7,7 @@ import multer from "multer";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { supabase } from "./config/supabase.js";
 import { allowRoles, authenticate, requirePermission, signToken } from "./auth.js";
-import { sendEmail } from "./services/emailService.js";
+import { getSmtpStatus, sendEmail } from "./services/emailService.js";
 import { validateEmail } from "./validators/emailValidator.js";
 
 const app = express();
@@ -53,6 +53,7 @@ const welcomeFor = (user) =>
 const isSafeOfferLink = (value) => /^(#[A-Za-z0-9_-]+|\/(?!\/)[^\s]*|https:\/\/[^\s]+)$/i.test(String(value || ""));
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", name: "WebMatrix API" }));
+app.get("/api/health/email", (_req, res) => res.json(getSmtpStatus()));
 
 app.post("/api/uploads/image",authenticate,allowRoles("super_admin","admin"),requirePermission("catalog.manage"),imageUpload.single("image"),async(req,res,next)=>{try{if(!req.file)return res.status(400).json({message:"Select an image to upload"});const folder=String(req.body.folder||"general").replace(/[^a-z0-9-]/gi,"").slice(0,30)||"general",extension=(req.file.originalname.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"");const path=`${folder}/${Date.now()}-${randomUUID()}.${extension}`;const{error}=await supabase.storage.from("webmatrix-assets").upload(path,req.file.buffer,{contentType:req.file.mimetype,cacheControl:"31536000",upsert:false});if(error)throw error;const{data}=supabase.storage.from("webmatrix-assets").getPublicUrl(path);res.status(201).json({url:data.publicUrl,path});}catch(error){next(error);}});
 

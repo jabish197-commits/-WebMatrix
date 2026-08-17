@@ -4,16 +4,30 @@ import tls from "node:tls";
 const EOL = "\r\n";
 
 export function getSmtpConfig(env = process.env) {
-  const host = env.SMTP_HOST?.trim();
+  const host = env.SMTP_HOST?.trim() || "smtp.gmail.com";
   const port = Number(env.SMTP_PORT || 465);
   const user = env.SMTP_USER?.trim();
-  const pass = env.SMTP_PASS?.trim();
+  const rawPass = env.SMTP_PASS?.trim();
+  const pass = host === "smtp.gmail.com" ? rawPass?.replace(/\s+/g, "") : rawPass;
   const from = env.SMTP_FROM?.trim() || (user ? `WebMatrix <${user}>` : "");
-  const secure = env.SMTP_SECURE === undefined ? port === 465 : env.SMTP_SECURE === "true";
-  if (!host || !user || !pass || !from || !Number.isInteger(port) || port < 1 || port > 65535) {
-    throw Object.assign(new Error("Password-reset SMTP is not configured. Add SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, and SMTP_FROM in Render."), { status: 503 });
+  const secure = env.SMTP_SECURE === undefined ? port === 465 : env.SMTP_SECURE.trim().toLowerCase() === "true";
+  const missing = [!user && "SMTP_USER", !pass && "SMTP_PASS"].filter(Boolean);
+  if (missing.length) {
+    throw Object.assign(new Error(`Password-reset SMTP is missing ${missing.join(" and ")} in Render.`), { status: 503 });
+  }
+  if (!from || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw Object.assign(new Error("Password-reset SMTP has an invalid SMTP_PORT or SMTP_FROM value in Render."), { status: 503 });
   }
   return { host, port, user, pass, from, secure };
+}
+
+export function getSmtpStatus(env = process.env) {
+  try {
+    const config = getSmtpConfig(env);
+    return { configured: true, host: config.host, port: config.port, secure: config.secure, sender: config.user.replace(/^(.{1,2}).*(@.*)$/, "$1••••$2") };
+  } catch (error) {
+    return { configured: false, message: error.message };
+  }
 }
 
 class ResponseReader {
