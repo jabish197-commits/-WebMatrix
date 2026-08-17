@@ -30,6 +30,27 @@ export function getSmtpStatus(env = process.env) {
   }
 }
 
+export function describeSmtpError(error) {
+  const raw = String(error?.message || error || "");
+  const lower = raw.toLowerCase();
+  if (/\b(534|535)\b/.test(raw) || lower.includes("authentication unsuccessful") || lower.includes("username and password not accepted")) {
+    return "Gmail rejected the SMTP login. Create a new Google App Password, then replace SMTP_PASS in Render and redeploy.";
+  }
+  if (/\b(550|553)\b/.test(raw) && (lower.includes("sender") || lower.includes("from") || lower.includes("send mail as"))) {
+    return "Gmail rejected the sender address. Set SMTP_FROM to WebMatrix <the same Gmail address used in SMTP_USER>.";
+  }
+  if (lower.includes("timed out") || ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(error?.code)) {
+    return "WebMatrix could not connect to Gmail SMTP. In Render use SMTP_PORT=587 and SMTP_SECURE=false, then redeploy.";
+  }
+  if (lower.includes("certificate") || lower.includes("tls") || lower.includes("ssl")) {
+    return "The secure connection to Gmail SMTP failed. Check SMTP_HOST, SMTP_PORT, and SMTP_SECURE in Render.";
+  }
+  if (/\b(550|552|554)\b/.test(raw)) {
+    return "Gmail refused this email. Check the recipient address and review the matching SMTP error in Render Logs.";
+  }
+  return "Gmail could not send the reset email. Check the latest webmatrix-api Render Log for the SMTP error code.";
+}
+
 class ResponseReader {
   constructor(socket) {
     this.buffer = ""; this.lines = []; this.responses = []; this.waiters = []; this.failure = null;
@@ -140,6 +161,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
     await command(socket, reader, "QUIT", [221], "quit");
     return { accepted: [to], transport: "smtp" };
   } catch (error) {
-    throw Object.assign(new Error(error.message || "Reset email could not be sent"), { status: 502 });
+    console.error("Password-reset SMTP delivery failed", { code: error?.code || null, message: error?.message || String(error) });
+    throw Object.assign(new Error(describeSmtpError(error)), { status: 502 });
   } finally { socket?.end(); }
 };
