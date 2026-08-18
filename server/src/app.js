@@ -109,6 +109,7 @@ app.post("/api/auth/forgot-password", async (req, res, next) => {
       await sendEmail({
         to: user.email,
         subject: "Reset your WebMatrix password",
+        templateParams: { name: user.name, to_name: user.name, reset_link: resetUrl, link: resetUrl },
         text: `Hello ${user.name}, reset your WebMatrix password using this one-time link within 30 minutes: ${resetUrl}`,
         html: `<div style="background:#f3f5f8;padding:32px 16px;font-family:Arial,sans-serif;color:#152018"><div style="max-width:560px;margin:auto;background:#fff;border:1px solid #e3e7e3;border-radius:18px;padding:32px"><div style="font-size:24px;font-weight:800;margin-bottom:28px">Web<span style="color:#6d5dfc">Matrix</span></div><h1 style="font-size:28px;margin:0 0 16px">Reset your password</h1><p style="line-height:1.6">Hello ${String(user.name).replace(/[<>&"]/g, "")},</p><p style="line-height:1.6">Click the button below to create a new password. This secure link expires in 30 minutes and works only once.</p><p style="margin:28px 0"><a href="${resetUrl}" style="display:inline-block;padding:14px 22px;background:#18251b;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">Reset password</a></p><p style="font-size:13px;line-height:1.5;color:#687269">If you did not request this change, ignore this email. Your current password will remain unchanged.</p></div></div>`,
       });

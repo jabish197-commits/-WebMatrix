@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describeSmtpError, getEmailStatus, getResendConfig, getSmtpConfig, getSmtpStatus } from "../src/services/emailService.js";
+import { describeSmtpError, getEmailJsConfig, getEmailStatus, getResendConfig, getSmtpConfig, getSmtpStatus } from "../src/services/emailService.js";
 
 test("SMTP configuration supports Gmail TLS", () => {
   const config = getSmtpConfig({ SMTP_HOST: "smtp.gmail.com", SMTP_PORT: "465", SMTP_USER: "shop@gmail.com", SMTP_PASS: "app-password", SMTP_FROM: "WebMatrix <shop@gmail.com>" });
@@ -39,4 +39,21 @@ test("HTTPS email is preferred when Resend is configured", () => {
     configured: true, transport: "resend-https", sender: "WebMatrix <onboarding@resend.dev>",
   });
   assert.equal(getEmailStatus({ SMTP_USER: "shop@gmail.com", SMTP_PASS: "secret" }).transport, "smtp");
+});
+
+test("EmailJS HTTPS configuration has highest priority", () => {
+  const env = {
+    EMAILJS_SERVICE_ID: "service_webmatrix",
+    EMAILJS_TEMPLATE_ID: "template_password_reset",
+    EMAILJS_PUBLIC_KEY: "public_key",
+    EMAILJS_PRIVATE_KEY: "private_key",
+    RESEND_API_KEY: "re_test",
+    EMAIL_FROM: "WebMatrix <onboarding@resend.dev>",
+  };
+  assert.deepEqual(getEmailJsConfig(env), {
+    serviceId: "service_webmatrix", templateId: "template_password_reset", publicKey: "public_key", privateKey: "private_key",
+  });
+  assert.deepEqual(getEmailStatus(env), {
+    configured: true, transport: "emailjs-https", serviceId: "service_webmatrix", templateId: "template_password_reset",
+  });
 });

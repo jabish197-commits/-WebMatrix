@@ -2,6 +2,8 @@ import net from "node:net";
 import tls from "node:tls";
 
 const EOL = "\r\n";
+const hasEmailJsValues = (env) => ["EMAILJS_SERVICE_ID", "EMAILJS_TEMPLATE_ID", "EMAILJS_PUBLIC_KEY", "EMAILJS_PRIVATE_KEY"]
+  .some((key) => env[key]?.trim());
 
 export function getSmtpConfig(env = process.env) {
   const host = env.SMTP_HOST?.trim() || "smtp.gmail.com";
@@ -39,6 +41,14 @@ export function getResendConfig(env = process.env) {
 }
 
 export function getEmailStatus(env = process.env) {
+  if (hasEmailJsValues(env)) {
+    try {
+      const config = getEmailJsConfig(env);
+      return { configured: true, transport: "emailjs-https", serviceId: config.serviceId, templateId: config.templateId };
+    } catch (error) {
+      return { configured: false, transport: "emailjs-https", message: error.message };
+    }
+  }
   if (env.RESEND_API_KEY?.trim() || env.EMAIL_FROM?.trim()) {
     try {
       const config = getResendConfig(env);
@@ -48,6 +58,16 @@ export function getEmailStatus(env = process.env) {
     }
   }
   return { ...getSmtpStatus(env), transport: "smtp" };
+}
+
+export function getEmailJsConfig(env = process.env) {
+  const serviceId = env.EMAILJS_SERVICE_ID?.trim();
+  const templateId = env.EMAILJS_TEMPLATE_ID?.trim();
+  const publicKey = env.EMAILJS_PUBLIC_KEY?.trim();
+  const privateKey = env.EMAILJS_PRIVATE_KEY?.trim();
+  const missing = [!serviceId && "EMAILJS_SERVICE_ID", !templateId && "EMAILJS_TEMPLATE_ID", !publicKey && "EMAILJS_PUBLIC_KEY"].filter(Boolean);
+  if (missing.length) throw Object.assign(new Error(`EmailJS is missing ${missing.join(", ")} in Render.`), { status: 503 });
+  return { serviceId, templateId, publicKey, privateKey };
 }
 
 export function describeSmtpError(error) {
@@ -161,7 +181,32 @@ function messageBody({ from, to, subject, text, html }) {
   ].join(EOL);
 }
 
-export const sendEmail = async ({ to, subject, html, text }) => {
+export const sendEmail = async ({ to, subject, html, text, templateParams = {} }) => {
+  if (hasEmailJsValues(process.env)) {
+    const config = getEmailJsConfig();
+    const payload = {
+      service_id: config.serviceId,
+      template_id: config.templateId,
+      user_id: config.publicKey,
+      template_params: {
+        to_email: to,
+        email: to,
+        subject,
+        message: text,
+        html,
+        ...templateParams,
+      },
+    };
+    if (config.privateKey) payload.accessToken = config.privateKey;
+    const response = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const responseText = await response.text();
+    if (!response.ok) throw Object.assign(new Error(responseText || "EmailJS could not send the reset email."), { status: 502 });
+    return { accepted: [to], transport: "emailjs-https" };
+  }
   if (process.env.RESEND_API_KEY?.trim() || process.env.EMAIL_FROM?.trim()) {
     const config = getResendConfig();
     const response = await fetch("https://api.resend.com/emails", {
