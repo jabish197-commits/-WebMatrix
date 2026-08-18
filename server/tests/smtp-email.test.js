@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describeSmtpError, getSmtpConfig, getSmtpStatus } from "../src/services/emailService.js";
+import { describeSmtpError, getEmailStatus, getResendConfig, getSmtpConfig, getSmtpStatus } from "../src/services/emailService.js";
 
 test("SMTP configuration supports Gmail TLS", () => {
   const config = getSmtpConfig({ SMTP_HOST: "smtp.gmail.com", SMTP_PORT: "465", SMTP_USER: "shop@gmail.com", SMTP_PASS: "app-password", SMTP_FROM: "WebMatrix <shop@gmail.com>" });
@@ -26,7 +26,17 @@ test("SMTP uses Gmail defaults, accepts spaced app passwords, and reports missin
 
 test("SMTP errors are converted to safe configuration guidance", () => {
   assert.match(describeSmtpError(new Error("SMTP password failed (535): authentication unsuccessful")), /new Google App Password/);
-  assert.match(describeSmtpError(Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT" })), /SMTP_PORT=587/);
+  assert.match(describeSmtpError(Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT" })), /Render Free blocks outbound SMTP/);
   assert.match(describeSmtpError(new Error("SMTP sender failed (550): From address rejected")), /SMTP_FROM/);
   assert.doesNotMatch(describeSmtpError(new Error("unknown failure")), /unknown failure/);
+});
+
+test("HTTPS email is preferred when Resend is configured", () => {
+  assert.deepEqual(getResendConfig({ RESEND_API_KEY: "re_test", EMAIL_FROM: "WebMatrix <onboarding@resend.dev>" }), {
+    apiKey: "re_test", from: "WebMatrix <onboarding@resend.dev>",
+  });
+  assert.deepEqual(getEmailStatus({ RESEND_API_KEY: "re_test", EMAIL_FROM: "WebMatrix <onboarding@resend.dev>" }), {
+    configured: true, transport: "resend-https", sender: "WebMatrix <onboarding@resend.dev>",
+  });
+  assert.equal(getEmailStatus({ SMTP_USER: "shop@gmail.com", SMTP_PASS: "secret" }).transport, "smtp");
 });

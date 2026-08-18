@@ -30,6 +30,26 @@ export function getSmtpStatus(env = process.env) {
   }
 }
 
+export function getResendConfig(env = process.env) {
+  const apiKey = env.RESEND_API_KEY?.trim();
+  const from = env.EMAIL_FROM?.trim();
+  const missing = [!apiKey && "RESEND_API_KEY", !from && "EMAIL_FROM"].filter(Boolean);
+  if (missing.length) throw Object.assign(new Error(`HTTPS email is missing ${missing.join(" and ")} in Render.`), { status: 503 });
+  return { apiKey, from };
+}
+
+export function getEmailStatus(env = process.env) {
+  if (env.RESEND_API_KEY?.trim() || env.EMAIL_FROM?.trim()) {
+    try {
+      const config = getResendConfig(env);
+      return { configured: true, transport: "resend-https", sender: config.from };
+    } catch (error) {
+      return { configured: false, transport: "resend-https", message: error.message };
+    }
+  }
+  return { ...getSmtpStatus(env), transport: "smtp" };
+}
+
 export function describeSmtpError(error) {
   const raw = String(error?.message || error || "");
   const lower = raw.toLowerCase();
@@ -40,7 +60,7 @@ export function describeSmtpError(error) {
     return "Gmail rejected the sender address. Set SMTP_FROM to WebMatrix <the same Gmail address used in SMTP_USER>.";
   }
   if (lower.includes("timed out") || ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH"].includes(error?.code)) {
-    return "WebMatrix could not connect to Gmail SMTP. In Render use SMTP_PORT=587 and SMTP_SECURE=false, then redeploy.";
+    return "Render Free blocks outbound SMTP. Configure RESEND_API_KEY and EMAIL_FROM for HTTPS email, or upgrade the Render service.";
   }
   if (lower.includes("certificate") || lower.includes("tls") || lower.includes("ssl")) {
     return "The secure connection to Gmail SMTP failed. Check SMTP_HOST, SMTP_PORT, and SMTP_SECURE in Render.";
@@ -142,6 +162,23 @@ function messageBody({ from, to, subject, text, html }) {
 }
 
 export const sendEmail = async ({ to, subject, html, text }) => {
+  if (process.env.RESEND_API_KEY?.trim() || process.env.EMAIL_FROM?.trim()) {
+    const config = getResendConfig();
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: config.from, to: [to], subject, html, text }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const providerMessage = String(data.message || "");
+      const message = providerMessage.includes("only send testing emails")
+        ? "Resend test mode can only email the account owner. Verify a sending domain in Resend to email other customers."
+        : providerMessage || "Reset email could not be sent through the HTTPS email provider.";
+      throw Object.assign(new Error(message), { status: 502 });
+    }
+    return { ...data, transport: "resend-https" };
+  }
   const config = getSmtpConfig();
   let socket;
   try {
