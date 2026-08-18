@@ -5,7 +5,7 @@ const EOL = "\r\n";
 
 export function getSmtpConfig(env = process.env) {
   const host = env.SMTP_HOST?.trim() || "smtp.gmail.com";
-  const port = Number(env.SMTP_PORT || 465);
+  const port = Number(env.SMTP_PORT || 587);
   const user = env.SMTP_USER?.trim();
   const rawPass = env.SMTP_PASS?.trim();
   const pass = host === "smtp.gmail.com" ? rawPass?.replace(/\s+/g, "") : rawPass;

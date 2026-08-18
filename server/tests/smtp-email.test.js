@@ -17,6 +17,8 @@ test("SMTP configuration supports STARTTLS and rejects missing secrets", () => {
 test("SMTP uses Gmail defaults, accepts spaced app passwords, and reports missing keys", () => {
   const config = getSmtpConfig({ SMTP_USER: "shop@gmail.com", SMTP_PASS: "abcd efgh ijkl mnop" });
   assert.equal(config.host, "smtp.gmail.com");
+  assert.equal(config.port, 587);
+  assert.equal(config.secure, false);
   assert.equal(config.pass, "abcdefghijklmnop");
   assert.equal(config.from, "WebMatrix <shop@gmail.com>");
   assert.deepEqual(getSmtpStatus({ SMTP_USER: "shop@gmail.com" }), { configured: false, message: "Password-reset SMTP is missing SMTP_PASS in Render." });
